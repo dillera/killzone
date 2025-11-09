@@ -19,15 +19,12 @@ static void build_device_spec(const char *path) {
 
 uint8_t kz_network_init(void) {
     uint8_t err;
-    printf("Initializing network...\n");
     err = network_init();
     if (err != FN_ERR_OK) {
-        printf("Network init error: %d\n", err);
         current_status = NET_ERROR;
         return err;
     }
     current_status = NET_CONNECTED;
-    printf("Network ready.\n");
     return 0;
 }
 
@@ -46,36 +43,26 @@ int16_t kz_network_http_get(const char *path, uint8_t *response, uint16_t respon
     int retry;
     
     if (current_status != NET_CONNECTED) {
-        printf("Not connected\n");
         return -1;
     }
     
     build_device_spec(path);
-    printf("GET %s\n", path);
     
     err = network_open(device_spec, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE);
     if (err != FN_ERR_OK) {
-        printf("Open error: %d\n", err);
         return -1;
     }
     
-    printf("Reading response...\n");
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
     retry = 0;
     while (bytes_read == 0 && retry < 10) {
-        printf("No data yet, retrying (%d)...\n", retry);
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
     
-    printf("Read returned: %d bytes\n", (int)bytes_read);
-    
     if (bytes_read > 0) {
         response[bytes_read] = 0;
-        printf("Got response\n");
-    } else {
-        printf("No data received\n");
     }
     
     network_close(device_spec);
@@ -88,68 +75,51 @@ int16_t kz_network_http_post(const char *path, const char *body, uint8_t *respon
     int retry;
     
     if (current_status != NET_CONNECTED) {
-        printf("Not connected\n");
         return -1;
     }
     
     build_device_spec(path);
-    printf("POST %s\n", path);
-    printf("Body: %s\n", body);
     
     err = network_open(device_spec, OPEN_MODE_HTTP_POST, OPEN_TRANS_NONE);
     if (err != FN_ERR_OK) {
-        printf("Open error: %d\n", err);
         return -1;
     }
     
     /* Add Content-Type header */
-    printf("Adding headers...\n");
     err = network_http_start_add_headers(device_spec);
     if (err != FN_ERR_OK) {
-        printf("Start headers error: %d\n", err);
         network_close(device_spec);
         return -1;
     }
     
     err = network_http_add_header(device_spec, "Content-Type: application/json");
     if (err != FN_ERR_OK) {
-        printf("Add header error: %d\n", err);
         network_close(device_spec);
         return -1;
     }
     
     err = network_http_end_add_headers(device_spec);
     if (err != FN_ERR_OK) {
-        printf("End headers error: %d\n", err);
         network_close(device_spec);
         return -1;
     }
     
-    printf("Sending POST...\n");
     err = network_http_post(device_spec, (char *)body);
     if (err != FN_ERR_OK) {
-        printf("Post error: %d\n", err);
         network_close(device_spec);
         return -1;
     }
     
-    printf("Reading response...\n");
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
     retry = 0;
     while (bytes_read == 0 && retry < 10) {
-        printf("No data yet, retrying (%d)...\n", retry);
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
     
-    printf("Read returned: %d bytes\n", (int)bytes_read);
-    
     if (bytes_read > 0) {
         response[bytes_read] = 0;
-        printf("Got response\n");
-    } else {
-        printf("No data received\n");
     }
     
     network_close(device_spec);

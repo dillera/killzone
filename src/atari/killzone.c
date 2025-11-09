@@ -44,18 +44,9 @@ static uint8_t response_buffer[RESPONSE_BUFFER_SIZE];
  * Main entry point
  */
 int main(void) {
-    printf("\n%s - Atari 8-bit Multiplayer Game\n", GAME_TITLE);
-    printf("Initializing...\n");
-    printf("Press any key to continue...\n");
-    getchar();
-    
     game_init();
     game_loop();
     game_close();
-    
-    printf("Goodbye!\n\n");
-    printf("Press any key to exit...\n");
-    getchar();
     return 0;
 }
 
@@ -71,7 +62,6 @@ void game_init(void) {
         state_set_current(STATE_ERROR);
     } else {
         state_set_current(STATE_CONNECTING);
-        printf("Game initialized. Connecting to server...\n");
     }
 }
 
@@ -95,8 +85,6 @@ void game_loop(void) {
     while (running && frame_count < 100) {
         current = state_get_current();
         frame_count++;
-        
-        printf("[Frame %d] State: %d\n", frame_count, current);
         
         switch (current) {
             case STATE_INIT:
@@ -124,9 +112,6 @@ void game_loop(void) {
         }
     }
     
-    if (frame_count >= 100) {
-        printf("Game loop timeout (100 frames)\n");
-    }
 }
 
 /**
@@ -185,7 +170,7 @@ void handle_state_joining(void) {
     if (!prompt_shown) {
         clrscr();
         gotoxy(0, 5);
-        printf("Enter your player name:\n");
+        printf("Enter player name:\n");
         gotoxy(0, 7);
         prompt_shown = 1;
     }
@@ -368,7 +353,10 @@ void handle_state_playing(void) {
 void handle_state_dead(void) {
     int c;
     
+    clrscr();
+    gotoxy(0, 10);
     printf("You have been eliminated!\n");
+    gotoxy(0, 12);
     printf("Rejoin? (y/n): ");
     
     c = getchar();
@@ -385,6 +373,8 @@ void handle_state_dead(void) {
  * Error state - game ends
  */
 void handle_state_error(void) {
+    clrscr();
+    gotoxy(0, 10);
     printf("ERROR: %s\n", state_get_error());
 }
 
@@ -405,13 +395,11 @@ void parse_join_response(const uint8_t *response, uint16_t len) {
     
     /* Extract player ID */
     if (json_get_string(json, "id", player_id, sizeof(player_id)) == 0) {
-        printf("Failed to extract player ID\n");
         return;
     }
     
     /* Extract position */
     if (!json_get_uint(json, "x", &x) || !json_get_uint(json, "y", &y)) {
-        printf("Failed to extract position\n");
         return;
     }
     
@@ -429,10 +417,6 @@ void parse_join_response(const uint8_t *response, uint16_t len) {
     
     /* Store in state */
     state_set_local_player(&player);
-    
-    printf("Player ID: %s\n", player_id);
-    printf("Spawn position: (%d, %d)\n", (int)x, (int)y);
-    printf("Health: %d\n", (int)health);
 }
 
 /**

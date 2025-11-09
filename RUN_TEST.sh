@@ -36,7 +36,7 @@ echo "  tail -f /tmp/killzone-server.log"
 echo ""
 
 cd /Users/dillera/code/killzone
-~/atari800SIO -netsio build/killzone.atari
+~/atari800SIO -netsio -win-width 1024 -win-height 768build/killzone.atari
 
 echo ""
 echo "Test complete\!"
