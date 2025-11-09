@@ -82,7 +82,7 @@ void game_loop(void) {
     int frame_count = 0;
     client_state_t current;
     
-    while (running && frame_count < 100) {
+    while (running && frame_count < 100000) {
         current = state_get_current();
         frame_count++;
         
