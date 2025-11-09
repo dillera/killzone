@@ -236,6 +236,7 @@ void handle_state_playing(void) {
     const player_state_t *others;
     char loser_id[32];
     const char *loser_start;
+    uint32_t new_x, new_y;
     
     /* Get world state periodically (every 5 frames) */
     if (frame_count++ % 5 == 0) {
@@ -337,6 +338,14 @@ void handle_state_playing(void) {
             bytes_read = kz_network_move_player(player->id, direction, response_buffer, RESPONSE_BUFFER_SIZE);
             
             if (bytes_read > 0) {
+                /* Parse new position from response */
+                if (json_get_uint((const char *)response_buffer, "x", &new_x) && 
+                    json_get_uint((const char *)response_buffer, "y", &new_y)) {
+                    /* Update local player position */
+                    player->x = (uint8_t)new_x;
+                    player->y = (uint8_t)new_y;
+                }
+                
                 /* Check if combat occurred */
                 if (strstr((const char *)response_buffer, "\"collision\":true") != NULL) {
                     /* Combat occurred - check if we lost */
