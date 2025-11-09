@@ -234,6 +234,8 @@ void handle_state_playing(void) {
     uint8_t player_count;
     uint8_t x, y, i;
     const player_state_t *others;
+    char loser_id[32];
+    const char *loser_start;
     
     /* Get world state periodically (every 5 frames) */
     if (frame_count++ % 5 == 0) {
@@ -335,9 +337,27 @@ void handle_state_playing(void) {
             bytes_read = kz_network_move_player(player->id, direction, response_buffer, RESPONSE_BUFFER_SIZE);
             
             if (bytes_read > 0) {
-                /* Parse response to check for combat */
-                if (strstr((const char *)response_buffer, "combat") != NULL) {
-                    /* Combat occurred - will be handled on next world state update */
+                /* Check if combat occurred */
+                if (strstr((const char *)response_buffer, "\"collision\":true") != NULL) {
+                    /* Combat occurred - check if we lost */
+                    if (strstr((const char *)response_buffer, "\"loserId\":\"") != NULL) {
+                        /* Extract loser ID from response */
+                        loser_start = strstr((const char *)response_buffer, "\"loserId\":\"");
+                        if (loser_start) {
+                            loser_start += 11; /* Skip past "\"loserId\":\"" */
+                            i = 0;
+                            while (i < 31 && loser_start[i] && loser_start[i] != '"') {
+                                loser_id[i] = loser_start[i];
+                                i++;
+                            }
+                            loser_id[i] = '\0';
+                            
+                            /* If we are the loser, transition to dead state */
+                            if (strcmp(loser_id, player->id) == 0) {
+                                state_set_current(STATE_DEAD);
+                            }
+                        }
+                    }
                 }
             }
         }
