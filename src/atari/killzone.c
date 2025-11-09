@@ -238,45 +238,64 @@ void handle_state_playing(void) {
     const char *loser_start;
     uint32_t new_x, new_y;
     
-    /* Get world state periodically (every 5 frames) */
-    if (frame_count++ % 5 == 0) {
-        bytes_read = kz_network_get_world_state(response_buffer, RESPONSE_BUFFER_SIZE);
-        
-        if (bytes_read > 0) {
-            parse_world_state(response_buffer, (uint16_t)bytes_read);
-        }
-    }
-    
-    /* Render game world only when player position changes (and we have a valid position) */
+    /* Render game world */
     player = (player_state_t *)state_get_local_player();
-    if (player && player->x < 255 && player->y < 255 && (player->x != last_player_x || player->y != last_player_y)) {
-        clrscr();
+    if (player && player->x < 255 && player->y < 255) {
+        /* Full redraw on first render or after world state update */
+        static int world_rendered = 0;
         
-        /* Draw world line by line */
-        for (y = 0; y < DISPLAY_HEIGHT; y++) {
-            gotoxy(0, y);
-            for (x = 0; x < DISPLAY_WIDTH; x++) {
-                printf(".");
+        /* Get world state periodically (every 5 frames) */
+        if (frame_count++ % 5 == 0) {
+            bytes_read = kz_network_get_world_state(response_buffer, RESPONSE_BUFFER_SIZE);
+            
+            if (bytes_read > 0) {
+                parse_world_state(response_buffer, (uint16_t)bytes_read);
+                world_rendered = 0;  /* Force full redraw on world state update */
             }
         }
-        
-        /* Draw other players as * */
-        others = state_get_other_players(&player_count);
-        for (i = 0; i < player_count; i++) {
-            if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
-                gotoxy(others[i].x, others[i].y);
-                printf("*");
+        if (!world_rendered) {
+            clrscr();
+            
+            /* Draw world line by line */
+            for (y = 0; y < DISPLAY_HEIGHT; y++) {
+                gotoxy(0, y);
+                for (x = 0; x < DISPLAY_WIDTH; x++) {
+                    printf(".");
+                }
             }
-        }
-        
-        /* Draw local player as @ (last so it appears on top) */
-        if (player->x < DISPLAY_WIDTH && player->y < DISPLAY_HEIGHT) {
+            
+            /* Draw other players as * */
+            others = state_get_other_players(&player_count);
+            for (i = 0; i < player_count; i++) {
+                if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
+                    gotoxy(others[i].x, others[i].y);
+                    printf("*");
+                }
+            }
+            
+            /* Draw local player as @ */
+            if (player->x < DISPLAY_WIDTH && player->y < DISPLAY_HEIGHT) {
+                gotoxy(player->x, player->y);
+                printf("@");
+            }
+            
+            last_player_x = player->x;
+            last_player_y = player->y;
+            world_rendered = 1;
+        } else if (player->x != last_player_x || player->y != last_player_y) {
+            /* Incremental update: only redraw changed positions */
+            
+            /* Erase old player position */
+            gotoxy(last_player_x, last_player_y);
+            printf(".");
+            
+            /* Draw new player position */
             gotoxy(player->x, player->y);
             printf("@");
+            
+            last_player_x = player->x;
+            last_player_y = player->y;
         }
-        
-        last_player_x = player->x;
-        last_player_y = player->y;
     }
     
     /* Display status bar periodically (every 10 frames) */
