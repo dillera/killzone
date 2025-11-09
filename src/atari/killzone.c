@@ -291,11 +291,14 @@ void handle_state_playing(void) {
         last_player_y = player->y;
     }
     
-    /* Display status bar every frame */
-    if (player) {
-        others = state_get_other_players(&player_count);
-        player_count++;  /* Include self */
-        display_draw_status_bar(player->id, player_count, "CONNECTED", state_get_world_ticks());
+    /* Display status bar periodically (every 10 frames) */
+    if (frame_count % 10 == 0) {
+        player = (player_state_t *)state_get_local_player();
+        if (player) {
+            const player_state_t *others = state_get_other_players(&player_count);
+            player_count++;  /* Include self */
+            display_draw_status_bar(player->id, player_count, "CONNECTED", state_get_world_ticks());
+        }
     }
     
     /* Check for keyboard input (non-blocking) */
