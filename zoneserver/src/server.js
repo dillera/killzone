@@ -8,12 +8,31 @@
 const express = require('express');
 const cors = require('cors');
 const World = require('./world');
+const Mob = require('./mob');
 const createApiRoutes = require('./routes/api');
 
 const PORT = process.env.PORT || 3000;
 
 // Initialize world
 const world = new World(40, 20);
+
+// Spawn initial mobs for testing multi-player rendering
+function spawnMobs() {
+  const mobNames = ['Goblin', 'Orc', 'Troll', 'Skeleton', 'Ghost'];
+  const numMobs = 3;
+  
+  for (let i = 0; i < numMobs; i++) {
+    const x = Math.floor(Math.random() * world.width);
+    const y = Math.floor(Math.random() * world.height);
+    const mobId = `mob_${Date.now()}_${i}`;
+    const mobName = mobNames[i % mobNames.length];
+    
+    const mob = new Mob(mobId, x, y, mobName);
+    world.addMob(mob);
+  }
+  
+  console.log(`🎮 Spawned ${numMobs} mobs for testing`);
+}
 
 // Create Express app
 const app = express();
@@ -77,6 +96,9 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`KillZone Server running on http://localhost:${PORT}`);
     console.log(`World dimensions: 40x20`);
     console.log(`API health check: GET http://localhost:${PORT}/api/health`);
+    
+    // Spawn mobs for testing
+    spawnMobs();
   });
 
   // Graceful shutdown

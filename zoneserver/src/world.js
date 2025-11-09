@@ -13,6 +13,7 @@ class World {
     this.width = width;
     this.height = height;
     this.players = new Map(); // playerId -> Player object
+    this.mobs = new Map(); // mobId -> Mob object
     this.timestamp = Date.now();
     this.ticks = 0;
   }
@@ -99,21 +100,83 @@ class World {
   }
 
   /**
+   * Add a mob to the world
+   * @param {Mob} mob - Mob object to add
+   * @returns {boolean} - Success status
+   */
+  addMob(mob) {
+    if (!mob || !mob.id) {
+      return false;
+    }
+    this.mobs.set(mob.id, mob);
+    this.timestamp = Date.now();
+    return true;
+  }
+
+  /**
+   * Remove a mob from the world
+   * @param {string} mobId - ID of mob to remove
+   * @returns {boolean} - Success status
+   */
+  removeMob(mobId) {
+    const removed = this.mobs.delete(mobId);
+    if (removed) {
+      this.timestamp = Date.now();
+    }
+    return removed;
+  }
+
+  /**
+   * Get all mobs
+   * @returns {Array} - Array of all mobs
+   */
+  getAllMobs() {
+    return Array.from(this.mobs.values());
+  }
+
+  /**
+   * Update all mobs (move them randomly)
+   */
+  updateMobs() {
+    for (const mob of this.mobs.values()) {
+      mob.moveRandom(this.width, this.height);
+    }
+  }
+
+  /**
    * Get world state snapshot for API responses
    * @returns {Object} - World state object
    */
   getState() {
     this.ticks++;  /* Increment world ticks on each state query */
-    return {
-      width: this.width,
-      height: this.height,
-      players: this.getAllPlayers().map(p => ({
+    
+    /* Update mobs every tick */
+    this.updateMobs();
+    
+    /* Combine players and mobs for the response */
+    const allEntities = [
+      ...this.getAllPlayers().map(p => ({
         id: p.id,
         x: p.x,
         y: p.y,
         health: p.health,
-        status: p.status
+        status: p.status,
+        type: 'player'
       })),
+      ...this.getAllMobs().map(m => ({
+        id: m.id,
+        x: m.x,
+        y: m.y,
+        health: m.health,
+        status: m.status,
+        type: 'mob'
+      }))
+    ];
+    
+    return {
+      width: this.width,
+      height: this.height,
+      players: allEntities,
       ticks: this.ticks,
       timestamp: this.timestamp
     };
@@ -124,6 +187,7 @@ class World {
    */
   reset() {
     this.players.clear();
+    this.mobs.clear();
     this.timestamp = Date.now();
   }
 }
