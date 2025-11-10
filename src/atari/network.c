@@ -56,7 +56,12 @@ int16_t kz_network_http_get(const char *path, uint8_t *response, uint16_t respon
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
     retry = 0;
-    while (bytes_read == 0 && retry < 10) {
+    while (bytes_read == 0 && retry < 50) {
+        /* Small delay to allow server to respond */
+        int i;
+        for (i = 0; i < 1000; i++) {
+            /* Busy wait */
+        }
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
@@ -113,7 +118,12 @@ int16_t kz_network_http_post(const char *path, const char *body, uint8_t *respon
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
     retry = 0;
-    while (bytes_read == 0 && retry < 10) {
+    while (bytes_read == 0 && retry < 50) {
+        /* Small delay to allow server to respond */
+        int i;
+        for (i = 0; i < 1000; i++) {
+            /* Busy wait */
+        }
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
