@@ -225,6 +225,7 @@ void handle_state_playing(void) {
     static uint8_t last_player_x = 255;
     static uint8_t last_player_y = 255;
     static uint8_t last_other_positions[MAX_OTHER_PLAYERS * 2];  /* x,y pairs */
+    static uint8_t last_other_count = 255;  /* Track previous player count for rejoin detection */
     int16_t bytes_read;
     int c;
     const char *direction = NULL;
@@ -235,6 +236,7 @@ void handle_state_playing(void) {
     char loser_id[32];
     const char *loser_start;
     uint32_t new_x, new_y;
+    char entity_char;
     
     /* Get world state periodically (every 5 frames) */
     if (frame_count++ % 5 == 0) {
@@ -248,10 +250,11 @@ void handle_state_playing(void) {
     /* Render game world */
     player = (player_state_t *)state_get_local_player();
     if (player && player->x < 255 && player->y < 255) {
-        /* Full redraw on first render only */
+        /* Full redraw on first render or when player count changes (rejoin detection) */
         static int world_rendered = 0;
+        others = state_get_other_players(&player_count);
         
-        if (!world_rendered) {
+        if (!world_rendered || (last_other_count != 255 && last_other_count != player_count)) {
             clrscr();
             
             /* Draw world line by line */
@@ -262,12 +265,13 @@ void handle_state_playing(void) {
                 }
             }
             
-            /* Draw other players as * */
-            others = state_get_other_players(&player_count);
+            /* Draw other entities - # for players, * for mobs */
             for (i = 0; i < player_count; i++) {
                 if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
                     gotoxy(others[i].x, others[i].y);
-                    printf("*");
+                    /* Use # for real players, * for mobs */
+                    entity_char = (strcmp(others[i].type, "player") == 0) ? '#' : '*';
+                    printf("%c", entity_char);
                 }
             }
             
@@ -279,6 +283,7 @@ void handle_state_playing(void) {
             
             last_player_x = player->x;
             last_player_y = player->y;
+            last_other_count = player_count;
             world_rendered = 1;
         } else if (player->x != last_player_x || player->y != last_player_y) {
             /* Incremental update: only redraw changed positions */
@@ -296,7 +301,6 @@ void handle_state_playing(void) {
         }
         
         /* Update other players incrementally */
-        others = state_get_other_players(&player_count);
         for (i = 0; i < player_count; i++) {
             uint8_t old_x = last_other_positions[i * 2];
             uint8_t old_y = last_other_positions[i * 2 + 1];
@@ -311,10 +315,11 @@ void handle_state_playing(void) {
                     printf(".");
                 }
                 
-                /* Draw new position */
+                /* Draw new position - # for players, * for mobs */
                 if (new_x_other < DISPLAY_WIDTH && new_y_other < DISPLAY_HEIGHT) {
                     gotoxy(new_x_other, new_y_other);
-                    printf("*");
+                    entity_char = (strcmp(others[i].type, "player") == 0) ? '#' : '*';
+                    printf("%c", entity_char);
                 }
                 
                 /* Update tracked position */
@@ -510,11 +515,14 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
     const char *id_start;
     const char *x_start;
     const char *y_start;
+    const char *type_start;
     const char *next_obj;
     const char *id_val;
+    const char *type_val;
     uint8_t count = 0;
     player_state_t *local = (player_state_t *)state_get_local_player();
     char id_buf[32];
+    char type_buf[8];
     uint32_t x_val, y_val;
     int i;
     static player_state_t other_players[MAX_OTHER_PLAYERS];
@@ -525,11 +533,12 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
     
     array_pos += 11; /* Skip "players":[ */
     
-    /* Parse each entity - look for {"id":"...", "x":N, "y":N} patterns */
+    /* Parse each entity - look for {"id":"...", "x":N, "y":N, "type":"..."} patterns */
     while (count < MAX_OTHER_PLAYERS && *array_pos && *array_pos != ']') {
         id_start = strstr(array_pos, "\"id\":\"");
         x_start = strstr(array_pos, "\"x\":");
         y_start = strstr(array_pos, "\"y\":");
+        type_start = strstr(array_pos, "\"type\":\"");
         next_obj = strchr(array_pos, '}');
         
         if (!id_start || !x_start || !y_start || !next_obj) break;
@@ -556,12 +565,25 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
         /* Extract y */
         y_val = (uint32_t)strtol(y_start + 4, NULL, 10);
         
+        /* Extract type (default to "mob" if not found) */
+        strcpy(type_buf, "mob");
+        if (type_start && type_start < next_obj) {
+            type_val = type_start + 8;
+            i = 0;
+            while (i < 7 && type_val[i] && type_val[i] != '"') {
+                type_buf[i] = type_val[i];
+                i++;
+            }
+            type_buf[i] = '\0';
+        }
+        
         /* Store entity */
         strncpy(other_players[count].id, id_buf, sizeof(other_players[count].id) - 1);
         other_players[count].x = (uint8_t)x_val;
         other_players[count].y = (uint8_t)y_val;
         other_players[count].health = 100;
         strcpy(other_players[count].status, "alive");
+        strcpy(other_players[count].type, type_buf);
         count++;
         
         array_pos = next_obj + 1;

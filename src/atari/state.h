@@ -21,6 +21,7 @@ typedef struct {
     uint8_t y;
     uint8_t health;
     char status[16];
+    char type[8];  /* "player" or "mob" */
 } player_state_t;
 
 /* World state */
