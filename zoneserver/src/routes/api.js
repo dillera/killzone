@@ -175,8 +175,12 @@ function createApiRoutes(world) {
       // Remove loser from world
       if (combatResult.finalLoserId === player.id) {
         world.removePlayer(player.id);
+        // Broadcast kill message (player killed by player)
+        world.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'player');
       } else {
         world.removePlayer(collidingPlayer.id);
+        // Broadcast kill message (player killed by player)
+        world.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'player');
       }
       world.setLastCombat(combatResult);
       console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingPlayer.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
@@ -186,8 +190,11 @@ function createApiRoutes(world) {
       // Remove loser from world
       if (combatResult.finalLoserId === player.id) {
         world.removePlayer(player.id);
+        // Broadcast kill message (player killed by mob)
+        world.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'player');
       } else {
         world.removeMob(collidingMob.id);
+        // No broadcast for mob deaths
       }
       world.setLastCombat(combatResult);
       console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingMob.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);

@@ -136,18 +136,21 @@ void display_update(void) {
 void display_draw_status_bar(const char *player_name, uint8_t player_count, 
                              const char *connection_status, uint16_t world_ticks) {
     static char line_buf[41];
+    static char ticks_buf[11];
     
     if (!player_name || !connection_status) {
         return;
     }
     
-    /* Line 20: Player info */
+    /* Line 20: Player info on left, ticks on right (starting at char 30) */
     snprintf(line_buf, sizeof(line_buf), "%s P:%d %s", player_name, player_count, connection_status);
     cputsxy(0, 20, line_buf);
     
-    /* Line 21: World state */
-    snprintf(line_buf, sizeof(line_buf), "Ticks:%d", world_ticks);
-    cputsxy(0, 21, line_buf);
+    snprintf(ticks_buf, sizeof(ticks_buf), "T:%d", world_ticks);
+    cputsxy(30, 20, ticks_buf);
+    
+    /* Line 21: Clear for server messages (combat, kills, etc) */
+    /* Messages written by display_draw_combat_message() */
     
     /* Line 22: Separator */
     cputsxy(0, 22, "----------------------------------------");

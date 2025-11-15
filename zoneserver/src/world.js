@@ -22,6 +22,8 @@ class World {
     this.lastCombatLoser = '';
     this.lastCombatScore = '';
     this.lastCombatMessages = [];
+    this.lastKillMessage = '';
+    this.lastKillTimestamp = 0;
   }
 
   /**
@@ -157,6 +159,21 @@ class World {
     this.lastCombatMessages = result.messages || [];
   }
 
+  setKillMessage(winnerName, loserName, loserType) {
+    const now = Date.now();
+    if (loserType === 'player') {
+      this.lastKillMessage = `${winnerName} killed ${loserName}!`;
+    } else {
+      this.lastKillMessage = `${winnerName} killed ${loserName}`;
+    }
+    this.lastKillTimestamp = now;
+  }
+
+  clearKillMessage() {
+    this.lastKillMessage = '';
+    this.lastKillTimestamp = 0;
+  }
+
   /**
    * Get all mobs
    * @returns {Array} - Array of all mobs
@@ -183,6 +200,14 @@ class World {
     
     /* Update mobs every tick */
     this.updateMobs();
+    
+    /* Auto-clear kill message after 5 seconds */
+    if (this.lastKillMessage && this.lastKillTimestamp) {
+      const elapsed = Date.now() - this.lastKillTimestamp;
+      if (elapsed > 5000) {
+        this.clearKillMessage();
+      }
+    }
     
     /* Combine players and mobs for the response */
     const allEntities = [
@@ -215,7 +240,9 @@ class World {
       lastCombatWinner: this.lastCombatWinner,
       lastCombatLoser: this.lastCombatLoser,
       lastCombatScore: this.lastCombatScore,
-      lastCombatMessages: this.lastCombatMessages
+      lastCombatMessages: this.lastCombatMessages,
+      lastKillMessage: this.lastKillMessage,
+      lastKillTimestamp: this.lastKillTimestamp
     };
   }
 
@@ -232,6 +259,8 @@ class World {
     this.lastCombatLoser = '';
     this.lastCombatScore = '';
     this.lastCombatMessages = [];
+    this.lastKillMessage = '';
+    this.lastKillTimestamp = 0;
   }
 }
 

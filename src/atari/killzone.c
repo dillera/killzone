@@ -478,19 +478,31 @@ void handle_state_playing(void) {
  * Player has been eliminated, offer to rejoin
  */
 void handle_state_dead(void) {
+    static int shown = 0;
     int c;
     
-    clrscr();
-    gotoxy(0, 10);
-    printf("You have been eliminated!\n");
-    gotoxy(0, 12);
-    printf("Rejoin? (y/n): ");
+    /* Show death message once */
+    if (!shown) {
+        clrscr();
+        gotoxy(0, 8);
+        printf("  *** YOU WERE KILLED! ***\n");
+        gotoxy(0, 10);
+        printf("  You have been eliminated in combat.\n");
+        gotoxy(0, 12);
+        printf("  Rejoin the game? (Y/N): ");
+        shown = 1;
+    }
     
-    c = getchar();
-    if (c == 'y' || c == 'Y') {
-        state_set_current(STATE_JOINING);
-    } else {
-        state_set_current(STATE_ERROR);
+    /* Check for input */
+    if (kbhit()) {
+        c = cgetc();
+        if (c == 'y' || c == 'Y') {
+            shown = 0;
+            state_set_current(STATE_JOINING);
+        } else if (c == 'n' || c == 'N') {
+            shown = 0;
+            state_set_current(STATE_INIT);
+        }
     }
 }
 
@@ -647,6 +659,7 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
 void parse_world_state(const uint8_t *response, uint16_t len) {
     uint32_t width, height, ticks;
     const char *json;
+    static char kill_msg[41];
     
     if (!response || len == 0) {
         return;
@@ -662,6 +675,11 @@ void parse_world_state(const uint8_t *response, uint16_t len) {
     /* Extract world ticks */
     if (json_get_uint(json, "ticks", &ticks)) {
         state_set_world_ticks((uint16_t)ticks);
+    }
+    
+    /* Extract and display lastKillMessage if present */
+    if (json_get_string(json, "lastKillMessage", kill_msg, sizeof(kill_msg)) > 0) {
+        display_draw_combat_message(kill_msg);
     }
     
     /* Parse entities from players array */
