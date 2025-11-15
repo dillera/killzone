@@ -15,6 +15,7 @@ class Mob {
     this.status = 'alive';
     this.moveCounter = 0;
     this.moveInterval = Math.floor(Math.random() * 3) + 2; // Move every 2-4 ticks
+    this.type = 'mob';
   }
 
   /**

@@ -16,6 +16,12 @@ class World {
     this.mobs = new Map(); // mobId -> Mob object
     this.timestamp = Date.now();
     this.ticks = 0;
+    this.lastCombatLog = '';
+    this.lastCombatTimestamp = 0;
+    this.lastCombatWinner = '';
+    this.lastCombatLoser = '';
+    this.lastCombatScore = '';
+    this.lastCombatMessages = [];
   }
 
   /**
@@ -99,6 +105,19 @@ class World {
     return null;
   }
 
+  getMob(mobId) {
+    return this.mobs.get(mobId) || null;
+  }
+
+  getMobAtPosition(x, y) {
+    for (const mob of this.mobs.values()) {
+      if (mob.x === x && mob.y === y) {
+        return mob;
+      }
+    }
+    return null;
+  }
+
   /**
    * Add a mob to the world
    * @param {Mob} mob - Mob object to add
@@ -124,6 +143,18 @@ class World {
       this.timestamp = Date.now();
     }
     return removed;
+  }
+
+  setLastCombat(result) {
+    if (!result) {
+      return;
+    }
+    this.lastCombatLog = result.combatLog || '';
+    this.lastCombatTimestamp = result.timestamp || Date.now();
+    this.lastCombatWinner = result.finalWinnerName || '';
+    this.lastCombatLoser = result.finalLoserName || '';
+    this.lastCombatScore = result.finalScore || '';
+    this.lastCombatMessages = result.messages || [];
   }
 
   /**
@@ -178,7 +209,13 @@ class World {
       height: this.height,
       players: allEntities,
       ticks: this.ticks,
-      timestamp: this.timestamp
+      timestamp: this.timestamp,
+      lastCombatTimestamp: this.lastCombatTimestamp,
+      lastCombatLog: this.lastCombatLog,
+      lastCombatWinner: this.lastCombatWinner,
+      lastCombatLoser: this.lastCombatLoser,
+      lastCombatScore: this.lastCombatScore,
+      lastCombatMessages: this.lastCombatMessages
     };
   }
 
@@ -189,6 +226,12 @@ class World {
     this.players.clear();
     this.mobs.clear();
     this.timestamp = Date.now();
+    this.lastCombatLog = '';
+    this.lastCombatTimestamp = 0;
+    this.lastCombatWinner = '';
+    this.lastCombatLoser = '';
+    this.lastCombatScore = '';
+    this.lastCombatMessages = [];
   }
 }
 

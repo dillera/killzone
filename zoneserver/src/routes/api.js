@@ -161,17 +161,36 @@ function createApiRoutes(world) {
     // Update position
     player.setPosition(newX, newY);
 
-    // Check for collision
+    // Check for collision with other players
     const collidingPlayer = world.getPlayerAtPosition(newX, newY, playerId);
+    // Check for collision with mobs
+    const collidingMob = world.getMobAtPosition(newX, newY);
+    
     let collision = false;
     let combatResult = null;
 
     if (collidingPlayer) {
       collision = true;
-      combatResult = CombatResolver.resolveCombat(player, collidingPlayer);
+      combatResult = CombatResolver.resolveBattle(player, collidingPlayer);
       // Remove loser from world
-      world.removePlayer(combatResult.loserId);
-      console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingPlayer.name}" - Winner: "${combatResult.winnerId === playerId ? player.name : collidingPlayer.name}"`);
+      if (combatResult.finalLoserId === player.id) {
+        world.removePlayer(player.id);
+      } else {
+        world.removePlayer(collidingPlayer.id);
+      }
+      world.setLastCombat(combatResult);
+      console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingPlayer.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
+    } else if (collidingMob) {
+      collision = true;
+      combatResult = CombatResolver.resolveBattle(player, collidingMob);
+      // Remove loser from world
+      if (combatResult.finalLoserId === player.id) {
+        world.removePlayer(player.id);
+      } else {
+        world.removeMob(collidingMob.id);
+      }
+      world.setLastCombat(combatResult);
+      console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingMob.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
     } else {
       console.log(`  🎮 ${player.name} moved ${direction} to (${newX}, ${newY})`);
     }

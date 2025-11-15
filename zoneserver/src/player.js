@@ -16,6 +16,7 @@ class Player {
     this.health = 100;
     this.status = 'alive'; // alive, dead, waiting
     this.joinedAt = Date.now();
+    this.type = 'player';
   }
 
   /**

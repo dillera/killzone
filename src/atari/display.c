@@ -153,7 +153,7 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     cputsxy(0, 22, "----------------------------------------");
     
     /* Line 23: Command help */
-    cputsxy(0, 23, "WASD=Move Q=Quit A=Attack");
+    cputsxy(0, 23, "WASD=Move Q=Quit Collide=Fight");
 }
 
 /**
@@ -161,4 +161,24 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
  */
 void display_draw_command_help(void) {
     printf("WASD/Arrows=Move | Q=Quit | A=Attack\n");
+}
+
+/**
+ * Draw combat message on line 21 (fixed position, no scrolling)
+ */
+void display_draw_combat_message(const char *message) {
+    static char line_buf[41];
+    
+    if (!message) {
+        return;
+    }
+    
+    /* Clear line first */
+    memset(line_buf, ' ', 40);
+    line_buf[40] = '\0';
+    cputsxy(0, 21, line_buf);
+    
+    /* Draw message */
+    snprintf(line_buf, sizeof(line_buf), "%s", message);
+    cputsxy(0, 21, line_buf);
 }

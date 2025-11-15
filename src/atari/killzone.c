@@ -398,23 +398,71 @@ void handle_state_playing(void) {
                 
                 /* Check if combat occurred */
                 if (strstr((const char *)response_buffer, "\"collision\":true") != NULL) {
-                    /* Combat occurred - check if we lost */
-                    if (strstr((const char *)response_buffer, "\"loserId\":\"") != NULL) {
-                        /* Extract loser ID from response */
-                        loser_start = strstr((const char *)response_buffer, "\"loserId\":\"");
-                        if (loser_start) {
-                            loser_start += 11; /* Skip past "\"loserId\":\"" */
+                    /* Combat occurred - parse combat result */
+                    const char *msg_start;
+                    const char *msg_end;
+                    char message[41];
+                    int msg_num;
+                    
+                    /* Display combat messages from combatResult.messages array */
+                    msg_start = strstr((const char *)response_buffer, "\"messages\":[");
+                    if (msg_start) {
+                        msg_start += 12; /* Skip "messages":[ */
+                        
+                        /* Parse and display up to 4 messages (3 rounds + final) */
+                        for (msg_num = 0; msg_num < 4 && *msg_start && *msg_start != ']'; msg_num++) {
+                            /* Find opening quote */
+                            msg_start = strchr(msg_start, '"');
+                            if (!msg_start) break;
+                            msg_start++;
+                            
+                            /* Find closing quote */
+                            msg_end = strchr(msg_start, '"');
+                            if (!msg_end) break;
+                            
+                            /* Extract message */
                             i = 0;
-                            while (i < 31 && loser_start[i] && loser_start[i] != '"') {
-                                loser_id[i] = loser_start[i];
+                            while (i < 40 && msg_start < msg_end) {
+                                message[i] = *msg_start;
+                                msg_start++;
                                 i++;
                             }
-                            loser_id[i] = '\0';
+                            message[i] = '\0';
                             
-                            /* If we are the loser, transition to dead state */
-                            if (strcmp(loser_id, player->id) == 0) {
-                                state_set_current(STATE_DEAD);
+                            /* Display message on fixed line */
+                            display_draw_combat_message(message);
+                            
+                            /* Pause briefly so player can read it */
+                            {
+                                int delay;
+                                for (delay = 0; delay < 15000; delay++) {
+                                    /* Busy wait */
+                                }
                             }
+                            
+                            /* Move to next message */
+                            msg_start = strchr(msg_end, ',');
+                            if (!msg_start) {
+                                msg_start = strchr(msg_end, ']');
+                                if (!msg_start) break;
+                            }
+                        }
+                    }
+                    
+                    /* Check if we lost */
+                    loser_start = strstr((const char *)response_buffer, "\"finalLoserId\":\"");
+                    if (loser_start) {
+                        loser_start += 16; /* Skip past "\"finalLoserId\":\"" */
+                        i = 0;
+                        while (i < 31 && loser_start[i] && loser_start[i] != '"') {
+                            loser_id[i] = loser_start[i];
+                            i++;
+                        }
+                        loser_id[i] = '\0';
+                        
+                        /* If we are the loser, transition to dead state */
+                        if (strcmp(loser_id, player->id) == 0) {
+                            state_set_current(STATE_DEAD);
                         }
                     }
                 }

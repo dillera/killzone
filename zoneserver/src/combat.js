@@ -7,43 +7,70 @@
 
 class CombatResolver {
   /**
-   * Resolve combat between two players
-   * @param {Player} player1 - First player in combat
-   * @param {Player} player2 - Second player in combat
-   * @returns {Object} - Combat result with winner and loser
+   * Resolve a three-round weighted battle between attacker and defender
+   * @param {Object} attacker
+   * @param {Object} defender
+   * @returns {Object}
    */
-  static resolveCombat(player1, player2) {
-    if (!player1 || !player2) {
+  static resolveBattle(attacker, defender) {
+    if (!attacker || !defender) {
       return null;
     }
 
-    // 50/50 random winner determination
-    const winner = Math.random() < 0.5 ? player1 : player2;
-    const loser = winner === player1 ? player2 : player1;
+    const rounds = [];
+    let attackerWins = 0;
+    let defenderWins = 0;
 
-    // Mark loser as dead
-    loser.setStatus('dead');
-    loser.setHealth(0);
+    const weightFor = (entity) => {
+      const base = entity.health || 1;
+      const typeBonus = entity.type === 'player' ? 20 : 0;
+      const statusPenalty = entity.status === 'dead' ? -100 : 0;
+      return Math.max(1, base + typeBonus + statusPenalty);
+    };
+
+    for (let round = 1; round <= 3; round++) {
+      const attackerWeight = weightFor(attacker);
+      const defenderWeight = weightFor(defender);
+      const total = attackerWeight + defenderWeight;
+      const roll = Math.random() * total;
+      const roundWinner = roll < attackerWeight ? attacker : defender;
+      const roundLoser = roundWinner === attacker ? defender : attacker;
+
+      if (roundWinner === attacker) {
+        attackerWins++;
+      } else {
+        defenderWins++;
+      }
+
+      rounds.push({
+        round,
+        winnerId: roundWinner.id,
+        message: `Round ${round}: ${roundWinner.name} hits ${roundLoser.name}`
+      });
+    }
+
+    const finalWinner = attackerWins >= defenderWins ? attacker : defender;
+    const finalLoser = finalWinner === attacker ? defender : attacker;
+
+    finalLoser.setStatus('dead');
+    finalLoser.setHealth(0);
 
     return {
       type: 'combat',
-      winner: winner.name,
-      loser: loser.name,
-      winnerId: winner.id,
-      loserId: loser.id,
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      rounds,
+      finalWinnerId: finalWinner.id,
+      finalLoserId: finalLoser.id,
+      finalWinnerName: finalWinner.name,
+      finalLoserName: finalLoser.name,
+      finalScore: `${attackerWins}-${defenderWins}`,
+      messages: [
+        ...rounds.map(r => r.message),
+        `${finalWinner.name} defeats ${finalLoser.name} (${attackerWins}-${defenderWins})`
+      ],
       timestamp: Date.now()
     };
-  }
-
-  /**
-   * Resolve multiple simultaneous combats
-   * @param {Array} collisions - Array of collision pairs
-   * @returns {Array} - Array of combat results
-   */
-  static resolveMultipleCombats(collisions) {
-    return collisions.map(collision => 
-      this.resolveCombat(collision.player1, collision.player2)
-    );
   }
 }
 

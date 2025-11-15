@@ -39,6 +39,7 @@ void display_update(void);
 void display_draw_status_bar(const char *player_name, uint8_t player_count, 
                              const char *connection_status, uint16_t world_ticks);
 void display_draw_command_help(void);
+void display_draw_combat_message(const char *message);
 
 /* Direct drawing */
 void display_draw_char(uint8_t x, uint8_t y, char c);
