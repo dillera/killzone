@@ -498,6 +498,9 @@ void handle_state_dead(void) {
         c = cgetc();
         if (c == 'y' || c == 'Y') {
             shown = 0;
+            /* Clear local player state for fresh rejoin */
+            state_clear_local_player();
+            state_clear_other_players();
             state_set_current(STATE_JOINING);
         } else if (c == 'n' || c == 'N') {
             shown = 0;

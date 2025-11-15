@@ -68,6 +68,13 @@ const player_state_t *state_get_local_player(void) {
 }
 
 /**
+ * Clear local player state (for respawn/rejoin)
+ */
+void state_clear_local_player(void) {
+    memset(&local_player, 0, sizeof(local_player));
+}
+
+/**
  * Update local player position
  */
 void state_update_local_position(uint8_t x, uint8_t y) {

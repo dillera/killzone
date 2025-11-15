@@ -24,6 +24,7 @@ class World {
     this.lastCombatMessages = [];
     this.lastKillMessage = '';
     this.lastKillTimestamp = 0;
+    this.previousPlayerNames = new Set(); // Track player names for rejoin detection
   }
 
   /**
@@ -36,8 +37,16 @@ class World {
       return false;
     }
     this.players.set(player.id, player);
+    // Track player name for rejoin detection
+    if (player.name) {
+      this.previousPlayerNames.add(player.name);
+    }
     this.timestamp = Date.now();
     return true;
+  }
+
+  isRejoiningPlayer(playerName) {
+    return this.previousPlayerNames.has(playerName);
   }
 
   /**
@@ -167,6 +176,11 @@ class World {
       this.lastKillMessage = `${winnerName} killed ${loserName}`;
     }
     this.lastKillTimestamp = now;
+  }
+
+  setRejoinMessage(playerName) {
+    this.lastKillMessage = `${playerName} has rejoined the game!`;
+    this.lastKillTimestamp = Date.now();
   }
 
   clearKillMessage() {

@@ -64,11 +64,20 @@ function createApiRoutes(world) {
       attempts++;
     } while (world.getPlayerAtPosition(x, y) !== null && attempts < 10);
 
+    // Check if this is a rejoining player
+    const isRejoin = world.isRejoiningPlayer(name);
+
     // Create and add player
     const player = new Player(playerId, name, x, y);
     world.addPlayer(player);
 
-    console.log(`  👤 Player joined: "${name}" (ID: ${playerId}) at position (${x}, ${y}) - Total players: ${world.getPlayerCount()}`);
+    // Broadcast join/rejoin message
+    if (isRejoin) {
+      world.setRejoinMessage(name);
+      console.log(`  🔄 Player rejoined: "${name}" (ID: ${playerId}) at position (${x}, ${y}) - Total players: ${world.getPlayerCount()}`);
+    } else {
+      console.log(`  👤 Player joined: "${name}" (ID: ${playerId}) at position (${x}, ${y}) - Total players: ${world.getPlayerCount()}`);
+    }
 
     res.status(201).json({
       success: true,

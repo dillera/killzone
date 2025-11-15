@@ -55,6 +55,7 @@ void state_set_current(client_state_t new_state);
 /* Player state */
 void state_set_local_player(const player_state_t *player);
 const player_state_t *state_get_local_player(void);
+void state_clear_local_player(void);
 void state_update_local_position(uint8_t x, uint8_t y);
 void state_update_local_health(uint8_t health);
 
