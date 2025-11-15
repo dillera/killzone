@@ -183,6 +183,11 @@ class World {
     this.lastKillTimestamp = Date.now();
   }
 
+  setJoinMessage(playerName) {
+    this.lastKillMessage = `${playerName} joined the game!`;
+    this.lastKillTimestamp = Date.now();
+  }
+
   clearKillMessage() {
     this.lastKillMessage = '';
     this.lastKillTimestamp = 0;

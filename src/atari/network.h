@@ -12,7 +12,7 @@
 #include <stddef.h>
 
 /* Server configuration */
-#define SERVER_HOST "localhost"
+#define SERVER_HOST "fujinet.diller.org"
 #define SERVER_PORT 3000
 #define SERVER_PROTO "HTTP"
 

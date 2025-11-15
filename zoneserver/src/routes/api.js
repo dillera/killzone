@@ -76,6 +76,7 @@ function createApiRoutes(world) {
       world.setRejoinMessage(name);
       console.log(`  🔄 Player rejoined: "${name}" (ID: ${playerId}) at position (${x}, ${y}) - Total players: ${world.getPlayerCount()}`);
     } else {
+      world.setJoinMessage(name);
       console.log(`  👤 Player joined: "${name}" (ID: ${playerId}) at position (${x}, ${y}) - Total players: ${world.getPlayerCount()}`);
     }
 

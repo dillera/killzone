@@ -38,7 +38,7 @@ void display_show_welcome(const char *server_name) {
     gotoxy(0, 7);
     printf("  Connected to KillZONE server\n");
     gotoxy(0, 8);
-    printf("  %s\n", server_name ? server_name : "localhost:3000");
+    printf("  %s\n", server_name ? server_name : "fujinet.diller.org:3000");
     gotoxy(0, 10);
     printf("  Waiting for game world...\n");
 }
