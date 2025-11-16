@@ -22,6 +22,7 @@ typedef struct {
     uint8_t health;
     char status[16];
     char type[8];  /* "player" or "mob" */
+    int isHunter;  /* 1 if this is a hunter mob, 0 otherwise */
 } player_state_t;
 
 /* World state */

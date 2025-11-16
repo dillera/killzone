@@ -313,12 +313,18 @@ void handle_state_playing(void) {
                 }
             }
             
-            /* Draw other entities - # for players, * for mobs */
+            /* Draw other entities - # for players, ^ for hunter mobs, * for regular mobs */
             for (i = 0; i < player_count; i++) {
                 if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
                     gotoxy(others[i].x, others[i].y);
-                    /* Use # for real players, * for mobs */
-                    entity_char = (strcmp(others[i].type, "player") == 0) ? '#' : '*';
+                    /* Use # for real players, ^ for hunter mobs, * for regular mobs */
+                    if (strcmp(others[i].type, "player") == 0) {
+                        entity_char = '#';
+                    } else if (others[i].isHunter) {
+                        entity_char = '^';
+                    } else {
+                        entity_char = '*';
+                    }
                     printf("%c", entity_char);
                 }
             }
@@ -363,10 +369,16 @@ void handle_state_playing(void) {
                     printf(".");
                 }
                 
-                /* Draw new position - # for players, * for mobs */
+                /* Draw new position - # for players, ^ for hunter mobs, * for regular mobs */
                 if (new_x_other < DISPLAY_WIDTH && new_y_other < DISPLAY_HEIGHT) {
                     gotoxy(new_x_other, new_y_other);
-                    entity_char = (strcmp(others[i].type, "player") == 0) ? '#' : '*';
+                    if (strcmp(others[i].type, "player") == 0) {
+                        entity_char = '#';
+                    } else if (others[i].isHunter) {
+                        entity_char = '^';
+                    } else {
+                        entity_char = '*';
+                    }
                     printf("%c", entity_char);
                 }
                 
@@ -429,8 +441,29 @@ void handle_state_playing(void) {
                 return;
             case 'q':
             case 'Q':
-                kz_network_leave_player(player->id, response_buffer, RESPONSE_BUFFER_SIZE);
-                state_set_current(STATE_INIT);
+                /* Show quit confirmation dialog */
+                clrscr();
+                gotoxy(0, 8);
+                printf("  Are you sure you want to quit?\n");
+                gotoxy(0, 10);
+                printf("  Y=Quit  N=Continue Playing\n");
+                gotoxy(0, 12);
+                printf("  Press a key: ");
+                
+                /* Wait for confirmation */
+                c = cgetc();
+                if (c == 'y' || c == 'Y') {
+                    /* Really quit - leave player and go to init */
+                    kz_network_leave_player(player->id, response_buffer, RESPONSE_BUFFER_SIZE);
+                    state_clear_local_player();
+                    state_set_rejoining(0);
+                    state_set_current(STATE_INIT);
+                } else if (c == 'n' || c == 'N') {
+                    /* Don't quit - rejoin with saved name */
+                    state_set_rejoining(1);
+                    state_clear_other_players();
+                    state_set_current(STATE_JOINING);
+                }
                 return;
             default:
                 break;
@@ -636,6 +669,7 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
     const char *x_start;
     const char *y_start;
     const char *type_start;
+    const char *hunter_start;
     const char *next_obj;
     const char *id_val;
     const char *type_val;
@@ -645,6 +679,7 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
     char type_buf[8];
     uint32_t x_val, y_val;
     int i;
+    int is_hunter;
     static player_state_t other_players[MAX_OTHER_PLAYERS];
     
     /* Find players array */
@@ -697,6 +732,16 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
             type_buf[i] = '\0';
         }
         
+        /* Extract isHunter flag (default to 0 if not found) */
+        is_hunter = 0;
+        hunter_start = strstr(array_pos, "\"isHunter\":");
+        if (hunter_start && hunter_start < next_obj) {
+            hunter_start += 11;  /* Skip "isHunter": */
+            if (strstr(hunter_start, "true") && strstr(hunter_start, "true") < next_obj) {
+                is_hunter = 1;
+            }
+        }
+        
         /* Store entity */
         strncpy(other_players[count].id, id_buf, sizeof(other_players[count].id) - 1);
         other_players[count].x = (uint8_t)x_val;
@@ -704,6 +749,7 @@ void parse_entities_from_response(const uint8_t *response, uint16_t len) {
         other_players[count].health = 100;
         strcpy(other_players[count].status, "alive");
         strcpy(other_players[count].type, type_buf);
+        other_players[count].isHunter = is_hunter;
         count++;
         
         array_pos = next_obj + 1;

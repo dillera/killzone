@@ -117,6 +117,18 @@ class Mob {
   setStatus(status) {
     this.status = status;
   }
+
+  /**
+   * Check if mob is adjacent to target (for attack)
+   * @param {number} targetX - Target X coordinate
+   * @param {number} targetY - Target Y coordinate
+   * @returns {boolean} - True if adjacent (within 1 move)
+   */
+  isAdjacentTo(targetX, targetY) {
+    const dx = Math.abs(this.x - targetX);
+    const dy = Math.abs(this.y - targetY);
+    return dx <= 1 && dy <= 1 && (dx + dy > 0);  // Adjacent but not same position
+  }
 }
 
 module.exports = Mob;

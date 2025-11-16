@@ -248,9 +248,11 @@ class World {
   }
 
   /**
-   * Update all mobs (move them randomly or toward players)
+   * Update all mobs (move them randomly or toward players, and attack if adjacent)
    */
   updateMobs() {
+    const CombatResolver = require('./combat');
+    
     for (const mob of this.mobs.values()) {
       if (mob.isHunter) {
         // Hunter mob: look for nearby players
@@ -266,8 +268,25 @@ class World {
         }
         
         if (nearestPlayer) {
-          // Move toward nearest player
-          mob.moveToward(nearestPlayer.x, nearestPlayer.y, this.width, this.height);
+          // Check if adjacent - if so, attack!
+          if (mob.isAdjacentTo(nearestPlayer.x, nearestPlayer.y)) {
+            // Combat between hunter and player
+            const combatResult = CombatResolver.resolveBattle(mob, nearestPlayer);
+            
+            // Remove loser
+            if (combatResult.finalLoserId === nearestPlayer.id) {
+              this.removePlayer(nearestPlayer.id);
+              this.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'player');
+              console.log(`  ⚔️  Hunter Combat: "${mob.name}" vs "${nearestPlayer.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
+            } else {
+              this.removeMob(mob.id);
+              console.log(`  ⚔️  Hunter Combat: "${mob.name}" vs "${nearestPlayer.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
+            }
+            this.setLastCombat(combatResult);
+          } else {
+            // Not adjacent, move toward player
+            mob.moveToward(nearestPlayer.x, nearestPlayer.y, this.width, this.height);
+          }
         } else {
           // No player in range, move randomly
           mob.moveRandom(this.width, this.height);
@@ -358,7 +377,8 @@ class World {
         y: m.y,
         health: m.health,
         status: m.status,
-        type: 'mob'
+        type: 'mob',
+        isHunter: m.isHunter || false
       }))
     ];
     
