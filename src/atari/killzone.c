@@ -802,6 +802,12 @@ void parse_world_state(const uint8_t *response, uint16_t len) {
     uint32_t width, height, ticks;
     const char *json;
     static char kill_msg[41];
+    const player_state_t *local_player;
+    uint8_t other_count;
+    int found_self = 0;
+    int c;
+    char search_str[64];
+    const char *our_id_search;
     
     if (!response || len == 0) {
         return;
@@ -826,4 +832,49 @@ void parse_world_state(const uint8_t *response, uint16_t len) {
     
     /* Parse entities from players array */
     parse_entities_from_response(response, len);
+    
+    /* Check if local player is still alive (present in world state) */
+    local_player = state_get_local_player();
+    if (local_player && local_player->id[0] != '\0') {
+        /* Check if we're in the other_players list (we exclude ourselves during parsing) */
+        const player_state_t *others = state_get_other_players(&other_count);
+        
+        /* If we're a player type, we should NOT be in other_players (we skip ourselves)
+           But if we're dead, we won't be in the world at all.
+           Check by looking at the raw JSON for our player ID */
+        our_id_search = strstr(json, "\"players\":[");
+        if (our_id_search) {
+            snprintf(search_str, sizeof(search_str), "\"id\":\"%s\"", local_player->id);
+            if (strstr(our_id_search, search_str) != NULL) {
+                found_self = 1;  /* We're still in the world */
+            }
+        }
+        
+        /* If we're not found in the world state, we're dead */
+        if (!found_self && state_get_current() == STATE_PLAYING) {
+            /* Player is dead - show death dialog */
+            clrscr();
+            gotoxy(0, 8);
+            printf("  YOU DIED!\n");
+            gotoxy(0, 10);
+            printf("  Play again?\n");
+            gotoxy(0, 12);
+            printf("  Y=Rejoin  N=Quit\n");
+            gotoxy(0, 14);
+            printf("  Press a key: ");
+            
+            c = cgetc();
+            if (c == 'y' || c == 'Y') {
+                /* Rejoin with saved name */
+                state_set_rejoining(1);
+                state_clear_other_players();
+                state_set_current(STATE_JOINING);
+            } else {
+                /* Quit to main menu */
+                state_clear_local_player();
+                state_set_rejoining(0);
+                state_set_current(STATE_INIT);
+            }
+        }
+    }
 }
