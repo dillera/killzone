@@ -35,22 +35,31 @@ app.use((req, res, next) => {
   const method = req.method.padEnd(6);
   const path = req.path;
   
-  // Log request details
-  let logMsg = `[${timestamp}] ${method} ${path}`;
+  // Skip verbose logging for /state requests (they're frequent)
+  const isStateRequest = path === '/world/state';
   
-  // Add body info for POST/PUT requests
-  if ((req.method === 'POST' || req.method === 'PUT') && req.body && Object.keys(req.body).length > 0) {
-    logMsg += ` | Body: ${JSON.stringify(req.body)}`;
+  // Log request details (skip for state requests)
+  if (!isStateRequest) {
+    let logMsg = `[${timestamp}] ${method} ${path}`;
+    
+    // Add body info for POST/PUT requests
+    if ((req.method === 'POST' || req.method === 'PUT') && req.body && Object.keys(req.body).length > 0) {
+      logMsg += ` | Body: ${JSON.stringify(req.body)}`;
+    }
+    
+    console.log(logMsg);
   }
-  
-  console.log(logMsg);
   
   // Capture response status
   const originalJson = res.json;
   res.json = function(data) {
     const statusCode = res.statusCode;
     const statusColor = statusCode >= 400 ? '❌' : '✅';
-    console.log(`  ${statusColor} Response [${statusCode}]: ${JSON.stringify(data).substring(0, 100)}${JSON.stringify(data).length > 100 ? '...' : ''}`);
+    
+    // Only log response for non-state requests
+    if (!isStateRequest) {
+      console.log(`  ${statusColor} Response [${statusCode}]: ${JSON.stringify(data).substring(0, 100)}${JSON.stringify(data).length > 100 ? '...' : ''}`);
+    }
     return originalJson.call(this, data);
   };
   

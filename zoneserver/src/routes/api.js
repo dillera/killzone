@@ -235,12 +235,14 @@ function createApiRoutes(world) {
         world.removePlayer(player.id);
         // Broadcast kill message (player killed by mob)
         world.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'player');
+        console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingMob.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore}) - PLAYER KILLED`);
       } else {
         world.removeMob(collidingMob.id);
-        // No broadcast for mob deaths
+        // Broadcast kill message (mob killed by player)
+        world.setKillMessage(combatResult.finalWinnerName, combatResult.finalLoserName, 'mob');
+        console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingMob.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore}) - MOB KILLED`);
       }
       world.setLastCombat(combatResult);
-      console.log(`  ⚔️  Combat: "${player.name}" vs "${collidingMob.name}" - Winner: "${combatResult.finalWinnerName}" (${combatResult.finalScore})`);
     } else {
       console.log(`  🎮 ${player.name} moved ${direction} to (${newX}, ${newY})`);
     }

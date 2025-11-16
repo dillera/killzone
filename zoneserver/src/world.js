@@ -267,7 +267,17 @@ class World {
           }
         }
         
+        // Track hunter state for logging
+        const wasHunting = mob.lastTargetId !== undefined;
+        const isHunting = nearestPlayer !== null;
+        
         if (nearestPlayer) {
+          // Log when hunter locks on to a new target
+          if (!wasHunting || mob.lastTargetId !== nearestPlayer.id) {
+            console.log(`  🎯 Hunter locked on: "${nearestPlayer.name}" at distance ${nearestDistance}`);
+            mob.lastTargetId = nearestPlayer.id;
+          }
+          
           // Check if adjacent - if so, attack!
           if (mob.isAdjacentTo(nearestPlayer.x, nearestPlayer.y)) {
             // Combat between hunter and player
@@ -288,7 +298,13 @@ class World {
             mob.moveToward(nearestPlayer.x, nearestPlayer.y, this.width, this.height, true);
           }
         } else {
-          // No player in range, move randomly
+          // No player in range
+          if (wasHunting) {
+            // Log when hunter loses target
+            console.log(`  🔍 Hunter lost target, resuming patrol`);
+            mob.lastTargetId = undefined;
+          }
+          // Move randomly
           mob.moveRandom(this.width, this.height);
         }
       } else {
@@ -353,10 +369,10 @@ class World {
     /* Update mobs every tick */
     this.updateMobs();
     
-    /* Auto-clear kill message after 5 seconds */
+    /* Auto-clear kill message after 4 seconds */
     if (this.lastKillMessage && this.lastKillTimestamp) {
       const elapsed = Date.now() - this.lastKillTimestamp;
-      if (elapsed > 5000) {
+      if (elapsed > 4000) {
         this.clearKillMessage();
       }
     }
