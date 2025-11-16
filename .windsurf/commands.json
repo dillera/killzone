@@ -1,0 +1,28 @@
+{
+  "commands": [
+    {
+      "name": "Build & Deploy Client",
+      "description": "Build Atari client binary and deploy to remote server",
+      "command": "./deploy-client.sh",
+      "cwd": "${workspaceFolder}",
+      "runInTerminal": true,
+      "showOutput": true
+    },
+    {
+      "name": "Build Client Only",
+      "description": "Build Atari client binary (no deployment)",
+      "command": "make clean && make disk",
+      "cwd": "${workspaceFolder}",
+      "runInTerminal": true,
+      "showOutput": true
+    },
+    {
+      "name": "Start Test Server",
+      "description": "Start local test server and run client",
+      "command": "./RUN_TEST.sh",
+      "cwd": "${workspaceFolder}",
+      "runInTerminal": true,
+      "showOutput": true
+    }
+  ]
+}
