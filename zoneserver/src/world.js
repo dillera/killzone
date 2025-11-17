@@ -6,10 +6,13 @@
  * - Player entity tracking
  * - Position validation
  * - World persistence across client connections
+ * - Level/wall data
  */
 
+const Level = require('./level');
+
 class World {
-  constructor(width = 40, height = 20) {
+  constructor(width = 40, height = 20, levelName = 'level1') {
     this.width = width;
     this.height = height;
     this.players = new Map(); // playerId -> Player object
@@ -26,6 +29,10 @@ class World {
     this.lastKillMessage = '';
     this.lastKillTimestamp = 0;
     this.previousPlayerNames = new Set(); // Track player names for rejoin detection
+    
+    // Load level with walls
+    this.level = new Level(levelName, width, height);
+    this.level.loadFromFile(levelName);
   }
 
   /**
@@ -134,13 +141,19 @@ class World {
   }
 
   /**
-   * Check if a position is valid (within bounds)
+   * Check if a position is valid (in bounds and not a wall)
    * @param {number} x - X coordinate
    * @param {number} y - Y coordinate
-   * @returns {boolean} - True if position is valid
+   * @returns {boolean} - True if position is valid and walkable
    */
   isValidPosition(x, y) {
-    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+      return false;  // Out of bounds
+    }
+    if (this.level && this.level.isWall(x, y)) {
+      return false;  // Wall blocks movement
+    }
+    return true;
   }
 
   /**
@@ -402,6 +415,7 @@ class World {
       width: this.width,
       height: this.height,
       players: allEntities,
+      walls: this.level ? this.level.getWalls() : [],
       ticks: this.ticks,
       timestamp: this.timestamp,
       lastCombatTimestamp: this.lastCombatTimestamp,

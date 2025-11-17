@@ -13,8 +13,9 @@ const createApiRoutes = require('./routes/api');
 
 const PORT = process.env.PORT || 3000;
 
-// Initialize world
-const world = new World(40, 20);
+// Initialize world with test level for testing, level1 for production
+const levelName = process.env.NODE_ENV === 'test' ? 'test' : 'level1';
+const world = new World(40, 20, levelName);
 
 // Spawn initial mobs for testing multi-player rendering
 function spawnMobs() {

@@ -9,7 +9,7 @@ describe('World', () => {
   let world;
 
   beforeEach(() => {
-    world = new World(40, 20);
+    world = new World(40, 20, 'test');  // Use test level with no walls
   });
 
   describe('initialization', () => {
