@@ -12,6 +12,8 @@ static client_state_t current_state = STATE_INIT;
 static player_state_t local_player;
 static player_state_t other_players[MAX_OTHER_PLAYERS];
 static uint8_t other_player_count = 0;
+static wall_t walls[MAX_WALLS];
+static uint16_t wall_count = 0;
 static uint8_t world_width = 40;
 static uint8_t world_height = 20;
 static uint16_t world_ticks = 0;
@@ -150,6 +152,34 @@ const player_state_t *state_get_other_players(uint8_t *count) {
 void state_clear_other_players(void) {
     memset(other_players, 0, sizeof(other_players));
     other_player_count = 0;
+}
+
+/**
+ * Set walls
+ */
+void state_set_walls(const wall_t *walls_data, uint16_t count) {
+    if (walls_data && count > 0 && count <= MAX_WALLS) {
+        memcpy(walls, walls_data, count * sizeof(wall_t));
+        wall_count = count;
+    }
+}
+
+/**
+ * Get walls
+ */
+const wall_t *state_get_walls(uint16_t *count) {
+    if (count) {
+        *count = wall_count;
+    }
+    return walls;
+}
+
+/**
+ * Clear walls
+ */
+void state_clear_walls(void) {
+    memset(walls, 0, sizeof(walls));
+    wall_count = 0;
 }
 
 /**

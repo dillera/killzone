@@ -13,6 +13,15 @@
 /* Maximum number of other players visible */
 #define MAX_OTHER_PLAYERS 10
 
+/* Maximum number of walls in a level */
+#define MAX_WALLS 256
+
+/* Wall position */
+typedef struct {
+    uint8_t x;
+    uint8_t y;
+} wall_t;
+
 /* Player state */
 typedef struct {
     char id[32];
@@ -33,6 +42,8 @@ typedef struct {
     uint8_t world_width;
     uint8_t world_height;
     uint16_t world_ticks;
+    wall_t walls[MAX_WALLS];
+    uint16_t wall_count;
 } world_state_t;
 
 /* Client state machine */
@@ -72,6 +83,11 @@ void state_update_local_health(uint8_t health);
 void state_set_other_players(const player_state_t *players, uint8_t count);
 const player_state_t *state_get_other_players(uint8_t *count);
 void state_clear_other_players(void);
+
+/* Walls */
+void state_set_walls(const wall_t *walls, uint16_t count);
+const wall_t *state_get_walls(uint16_t *count);
+void state_clear_walls(void);
 
 /* World dimensions */
 void state_set_world_dimensions(uint8_t width, uint8_t height);

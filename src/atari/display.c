@@ -93,6 +93,14 @@ void display_draw_world(const world_state_t *world) {
     
     display_clear();
     
+    /* Draw walls first (so they appear behind players) */
+    for (i = 0; i < world->wall_count && i < MAX_WALLS; i++) {
+        const wall_t *wall = &world->walls[i];
+        if (wall->x < DISPLAY_WIDTH && wall->y < DISPLAY_HEIGHT) {
+            display_draw_char(wall->x, wall->y, CHAR_WALL);
+        }
+    }
+    
     /* Draw other players */
     for (i = 0; i < world->other_player_count; i++) {
         const player_state_t *player = &world->other_players[i];

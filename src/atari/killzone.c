@@ -314,6 +314,18 @@ void handle_state_playing(void) {
                 }
             }
             
+            /* Draw walls using ATASCII characters */
+            {
+                uint16_t wall_count;
+                const wall_t *walls = state_get_walls(&wall_count);
+                for (i = 0; i < wall_count; i++) {
+                    if (walls[i].x < DISPLAY_WIDTH && walls[i].y < DISPLAY_HEIGHT) {
+                        gotoxy(walls[i].x, walls[i].y);
+                        printf("%c", CHAR_WALL);
+                    }
+                }
+            }
+            
             /* Draw other entities - # for players, ^ for hunter mobs, * for regular mobs */
             for (i = 0; i < player_count; i++) {
                 if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
@@ -695,6 +707,58 @@ void parse_join_response(const uint8_t *response, uint16_t len) {
 }
 
 /**
+ * Parse walls from JSON response
+ * Extracts wall positions from walls array
+ */
+void parse_walls_from_response(const uint8_t *response, uint16_t len) {
+    const char *json = (const char *)response;
+    const char *array_pos;
+    const char *x_start;
+    const char *y_start;
+    const char *next_obj;
+    uint32_t x_val, y_val;
+    uint16_t count = 0;
+    static wall_t temp_walls[MAX_WALLS];
+    
+    if (!response || len == 0) {
+        return;
+    }
+    
+    /* Find walls array */
+    array_pos = strstr(json, "\"walls\":[");
+    if (!array_pos) {
+        state_clear_walls();  /* No walls in response */
+        return;
+    }
+    
+    array_pos += 9;  /* Skip "walls":[ */
+    
+    /* Parse each wall object */
+    while (array_pos && count < MAX_WALLS) {
+        x_start = strstr(array_pos, "\"x\":");
+        y_start = strstr(array_pos, "\"y\":");
+        next_obj = strchr(array_pos, '}');
+        
+        if (!x_start || !y_start || !next_obj) break;
+        if (x_start > next_obj || y_start > next_obj) break;
+        
+        /* Extract x and y */
+        x_val = (uint32_t)strtol(x_start + 4, NULL, 10);
+        y_val = (uint32_t)strtol(y_start + 4, NULL, 10);
+        
+        /* Store wall */
+        temp_walls[count].x = (uint8_t)x_val;
+        temp_walls[count].y = (uint8_t)y_val;
+        count++;
+        
+        array_pos = next_obj + 1;
+    }
+    
+    /* Update state with walls */
+    state_set_walls(temp_walls, count);
+}
+
+/**
  * Parse entities from players array in JSON
  * Extracts x,y coordinates for each entity
  */
@@ -829,6 +893,9 @@ void parse_world_state(const uint8_t *response, uint16_t len) {
     if (json_get_string(json, "lastKillMessage", kill_msg, sizeof(kill_msg)) > 0) {
         display_draw_combat_message(kill_msg);
     }
+    
+    /* Parse walls from response */
+    parse_walls_from_response(response, len);
     
     /* Parse entities from players array */
     parse_entities_from_response(response, len);

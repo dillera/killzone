@@ -21,7 +21,14 @@
 #define CHAR_EMPTY '.'
 #define CHAR_PLAYER '@'
 #define CHAR_ENEMY '*'
-#define CHAR_WALL '#'
+/* ATASCII box drawing characters for walls */
+#define CHAR_WALL 1  /* DEC 1 - vertical bar */
+#define CHAR_WALL_H 2  /* DEC 2 - horizontal bar */
+#define CHAR_WALL_TL 3  /* DEC 3 - top-left corner */
+#define CHAR_WALL_TR 4  /* DEC 4 - top-right corner */
+#define CHAR_WALL_BL 5  /* DEC 5 - bottom-left corner */
+#define CHAR_WALL_BR 18  /* DEC 18 - bottom-right corner */
+#define CHAR_WALL_CROSS 19  /* DEC 19 - cross/intersection */
 
 /* Initialization and lifecycle */
 void display_init(void);
