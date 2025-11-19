@@ -707,6 +707,19 @@ void parse_join_response(const uint8_t *response, uint16_t len) {
 }
 
 /**
+ * Parse integer from string (simple positive integers)
+ */
+static uint32_t parse_fast_int(const char *s) {
+    uint32_t res = 0;
+    while (*s && (*s < '0' || *s > '9')) s++; /* Skip non-digits */
+    while (*s >= '0' && *s <= '9') {
+        res = res * 10 + (*s - '0');
+        s++;
+    }
+    return res;
+}
+
+/**
  * Parse walls from JSON response
  * Extracts wall positions from walls array
  */
@@ -715,7 +728,6 @@ void parse_walls_from_response(const uint8_t *response, uint16_t len) {
     const char *array_pos;
     const char *next_obj;
     uint32_t x_val = 0, y_val = 0;
-    int32_t int_val;
     uint16_t count = 0;
     static wall_t temp_walls[MAX_WALLS];
     char obj_buf[64];
@@ -754,12 +766,16 @@ void parse_walls_from_response(const uint8_t *response, uint16_t len) {
             y_val = 0;
             
             while (*p) {
-                /* Look for "x": or "y": */
-                if (p[0] == '"' && p[2] == '"' && p[3] == ':') {
-                    if (p[1] == 'x') {
-                        x_val = (uint32_t)strtol(p + 4, NULL, 10);
-                    } else if (p[1] == 'y') {
-                        y_val = (uint32_t)strtol(p + 4, NULL, 10);
+                /* Look for "key" */
+                if (*p == '"') {
+                    char key = p[1];
+                    if (p[2] == '"') {
+                        /* Found "x" or "y" */
+                        if (key == 'x') {
+                            x_val = parse_fast_int(p + 3);
+                        } else if (key == 'y') {
+                            y_val = parse_fast_int(p + 3);
+                        }
                     }
                 }
                 p++;
