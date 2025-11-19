@@ -64,6 +64,7 @@ class Level {
         }
       }
 
+      this.levelName = levelName;
       console.log(`✅ Loaded level "${levelName}" with ${this.walls.size} walls`);
       return true;
     } catch (error) {
