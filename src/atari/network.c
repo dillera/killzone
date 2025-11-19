@@ -55,8 +55,9 @@ int16_t kz_network_http_get(const char *path, uint8_t *response, uint16_t respon
     
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
+    /* Retry loop with significantly increased count for emulation timing */
     retry = 0;
-    while (bytes_read == 0 && retry < 10) {
+    while (bytes_read == 0 && retry < 2000) {
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
@@ -112,8 +113,9 @@ int16_t kz_network_http_post(const char *path, const char *body, uint8_t *respon
     
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
+    /* Retry loop with significantly increased count for emulation timing */
     retry = 0;
-    while (bytes_read == 0 && retry < 10) {
+    while (bytes_read == 0 && retry < 2000) {
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
