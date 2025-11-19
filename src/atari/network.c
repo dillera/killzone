@@ -14,7 +14,7 @@ static char path_buf[256];
 static char body_buf[256];
 
 static void build_device_spec(const char *path) {
-    snprintf(device_spec, DEVICE_SPEC_SIZE, "N:HTTP://%s:%d%s", SERVER_HOST, SERVER_PORT, path);
+    snprintf(device_spec, DEVICE_SPEC_SIZE, "N:%s://%s:%d%s", SERVER_PROTO, SERVER_HOST, SERVER_PORT, path);
 }
 
 uint8_t kz_network_init(void) {
