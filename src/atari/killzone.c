@@ -713,12 +713,13 @@ void parse_join_response(const uint8_t *response, uint16_t len) {
 void parse_walls_from_response(const uint8_t *response, uint16_t len) {
     const char *json = (const char *)response;
     const char *array_pos;
-    const char *x_start;
-    const char *y_start;
     const char *next_obj;
-    uint32_t x_val, y_val;
+    uint32_t x_val = 0, y_val = 0;
+    int32_t int_val;
     uint16_t count = 0;
     static wall_t temp_walls[MAX_WALLS];
+    char obj_buf[64];
+    uint16_t obj_len;
     
     if (!response || len == 0) {
         return;
@@ -735,23 +736,36 @@ void parse_walls_from_response(const uint8_t *response, uint16_t len) {
     
     /* Parse each wall object */
     while (array_pos && count < MAX_WALLS) {
-        x_start = strstr(array_pos, "\"x\":");
-        y_start = strstr(array_pos, "\"y\":");
+        /* Find end of current object */
         next_obj = strchr(array_pos, '}');
+        if (!next_obj) break;
         
-        if (!x_start || !y_start || !next_obj) break;
-        if (x_start > next_obj || y_start > next_obj) break;
+        /* Extract object string to buffer */
+        obj_len = (uint16_t)(next_obj - array_pos + 1);
+        if (obj_len >= sizeof(obj_buf)) obj_len = sizeof(obj_buf) - 1;
         
-        /* Extract x and y */
-        x_val = (uint32_t)strtol(x_start + 4, NULL, 10);
-        y_val = (uint32_t)strtol(y_start + 4, NULL, 10);
+        strncpy(obj_buf, array_pos, obj_len);
+        obj_buf[obj_len] = '\0';
+        
+        /* Parse x and y from object buffer */
+        if (json_get_int(obj_buf, "x", &int_val)) {
+            x_val = (uint32_t)int_val;
+        }
+        if (json_get_int(obj_buf, "y", &int_val)) {
+            y_val = (uint32_t)int_val;
+        }
         
         /* Store wall */
         temp_walls[count].x = (uint8_t)x_val;
         temp_walls[count].y = (uint8_t)y_val;
         count++;
         
+        /* Move to next object */
         array_pos = next_obj + 1;
+        /* Skip comma if present */
+        if (*array_pos == ',') array_pos++;
+        /* Stop if array ends */
+        if (*array_pos == ']') break;
     }
     
     /* Update state with walls */
