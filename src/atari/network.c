@@ -13,18 +13,12 @@ static char device_spec[DEVICE_SPEC_SIZE];
 static char path_buf[256];
 static char body_buf[256];
 
-static void kz_delay(void) {
-    volatile long i;
-    for (i = 0; i < 100000; i++);
-}
-
 static void build_device_spec(const char *path) {
     snprintf(device_spec, DEVICE_SPEC_SIZE, "N:HTTP://%s:%d%s", SERVER_HOST, SERVER_PORT, path);
 }
 
 uint8_t kz_network_init(void) {
     uint8_t err;
-    kz_delay();
     err = network_init();
     if (err != FN_ERR_OK) {
         current_status = NET_ERROR;
@@ -54,19 +48,16 @@ int16_t kz_network_http_get(const char *path, uint8_t *response, uint16_t respon
     
     build_device_spec(path);
     
-    kz_delay();
     err = network_open(device_spec, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE);
     if (err != FN_ERR_OK) {
         return -1;
     }
     
-    kz_delay();
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
-    /* Retry loop with significantly increased count for emulation timing */
+    /* Retry loop with increased count for emulation timing */
     retry = 0;
-    while (bytes_read == 0 && retry < 2000) {
-        kz_delay();
+    while (bytes_read == 0 && retry < 1000) {
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
@@ -75,7 +66,6 @@ int16_t kz_network_http_get(const char *path, uint8_t *response, uint16_t respon
         response[bytes_read] = 0;
     }
     
-    kz_delay();
     network_close(device_spec);
     return bytes_read;
 }
@@ -91,52 +81,41 @@ int16_t kz_network_http_post(const char *path, const char *body, uint8_t *respon
     
     build_device_spec(path);
     
-    kz_delay();
     err = network_open(device_spec, OPEN_MODE_HTTP_POST, OPEN_TRANS_NONE);
     if (err != FN_ERR_OK) {
         return -1;
     }
     
     /* Add Content-Type header */
-    kz_delay();
     err = network_http_start_add_headers(device_spec);
     if (err != FN_ERR_OK) {
-        kz_delay();
         network_close(device_spec);
         return -1;
     }
     
-    kz_delay();
     err = network_http_add_header(device_spec, "Content-Type: application/json");
     if (err != FN_ERR_OK) {
-        kz_delay();
         network_close(device_spec);
         return -1;
     }
     
-    kz_delay();
     err = network_http_end_add_headers(device_spec);
     if (err != FN_ERR_OK) {
-        kz_delay();
         network_close(device_spec);
         return -1;
     }
     
-    kz_delay();
     err = network_http_post(device_spec, (char *)body);
     if (err != FN_ERR_OK) {
-        kz_delay();
         network_close(device_spec);
         return -1;
     }
     
-    kz_delay();
     bytes_read = network_read_nb(device_spec, response, response_len - 1);
     
-    /* Retry loop with significantly increased count for emulation timing */
+    /* Retry loop with increased count for emulation timing */
     retry = 0;
-    while (bytes_read == 0 && retry < 2000) {
-        kz_delay();
+    while (bytes_read == 0 && retry < 1000) {
         bytes_read = network_read_nb(device_spec, response, response_len - 1);
         retry++;
     }
@@ -145,7 +124,6 @@ int16_t kz_network_http_post(const char *path, const char *body, uint8_t *respon
         response[bytes_read] = 0;
     }
     
-    kz_delay();
     network_close(device_spec);
     return bytes_read;
 }
