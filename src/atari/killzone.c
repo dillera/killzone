@@ -400,25 +400,21 @@ void handle_state_playing(void) {
         switch (c) {
             case 'w':
             case 'W':
-            case 'k':  /* vi-style up */
             case 28:   /* Atari up arrow */
                 direction = "up";
                 break;
             case 's':
             case 'S':
-            case 'j':  /* vi-style down */
             case 29:   /* Atari down arrow */
                 direction = "down";
                 break;
             case 'a':
             case 'A':
-            case 'h':  /* vi-style left */
             case 30:   /* Atari left arrow */
                 direction = "left";
                 break;
             case 'd':
             case 'D':
-            case 'l':  /* vi-style right */
             case 31:   /* Atari right arrow */
                 direction = "right";
                 break;
