@@ -22,7 +22,6 @@
 /* Game constants */
 #define GAME_TITLE "KillZone"
 #define PLAYER_NAME_MAX 32
-#define RESPONSE_BUFFER_SIZE 1024
 
 /* Function declarations */
 void game_init(void);

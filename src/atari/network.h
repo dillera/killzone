@@ -22,7 +22,7 @@
 
 /* Network device specification format: N:PROTO://HOST:PORT/PATH */
 #define DEVICE_SPEC_SIZE 256
-#define RESPONSE_BUFFER_SIZE 1024
+#define RESPONSE_BUFFER_SIZE 4096
 
 /* Network status */
 typedef enum {
