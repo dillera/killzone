@@ -747,12 +747,23 @@ void parse_walls_from_response(const uint8_t *response, uint16_t len) {
         strncpy(obj_buf, array_pos, obj_len);
         obj_buf[obj_len] = '\0';
         
-        /* Parse x and y from object buffer */
-        if (json_get_int(obj_buf, "x", &int_val)) {
-            x_val = (uint32_t)int_val;
-        }
-        if (json_get_int(obj_buf, "y", &int_val)) {
-            y_val = (uint32_t)int_val;
+        /* Parse x and y from object buffer manually to be robust */
+        {
+            char *p = obj_buf;
+            x_val = 0;
+            y_val = 0;
+            
+            while (*p) {
+                /* Look for "x": or "y": */
+                if (p[0] == '"' && p[2] == '"' && p[3] == ':') {
+                    if (p[1] == 'x') {
+                        x_val = (uint32_t)strtol(p + 4, NULL, 10);
+                    } else if (p[1] == 'y') {
+                        y_val = (uint32_t)strtol(p + 4, NULL, 10);
+                    }
+                }
+                p++;
+            }
         }
         
         /* Store wall */
