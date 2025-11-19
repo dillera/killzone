@@ -84,34 +84,59 @@ void display_draw_char(uint8_t x, uint8_t y, char c) {
 /**
  * Draw the game world
  */
-void display_draw_world(const world_state_t *world) {
-    uint8_t i;
-    
-    if (!world) {
-        return;
-    }
+void display_draw_world(void) {
+    uint8_t i, x, y;
+    uint16_t wall_count;
+    const wall_t *walls;
+    uint8_t other_player_count;
+    const player_state_t *other_players;
+    const player_state_t *local_player;
     
     display_clear();
     
+    /* Get data from state */
+    walls = state_get_walls(&wall_count);
+    other_players = state_get_other_players(&other_player_count);
+    local_player = state_get_local_player();
+    
     /* Draw walls first (so they appear behind players) */
-    for (i = 0; i < world->wall_count && i < MAX_WALLS; i++) {
-        const wall_t *wall = &world->walls[i];
+    for (i = 0; i < wall_count && i < MAX_WALLS; i++) {
+        const wall_t *wall = &walls[i];
         if (wall->x < DISPLAY_WIDTH && wall->y < DISPLAY_HEIGHT) {
-            display_draw_char(wall->x, wall->y, CHAR_WALL);
+            display_draw_char(wall->x, wall->y, CHAR_WALL_CROSS); /* Use cross as temporary marker */
+        }
+    }
+    
+    /* Fixup wall characters based on connectivity */
+    for (y = 0; y < DISPLAY_HEIGHT; y++) {
+        for (x = 0; x < DISPLAY_WIDTH; x++) {
+            if (screen_buffer[y][x] == CHAR_WALL_CROSS) {
+                uint8_t n = (y > 0 && screen_buffer[y-1][x] == CHAR_WALL_CROSS);
+                uint8_t s = (y < DISPLAY_HEIGHT-1 && screen_buffer[y+1][x] == CHAR_WALL_CROSS);
+                uint8_t e = (x < DISPLAY_WIDTH-1 && screen_buffer[y][x+1] == CHAR_WALL_CROSS);
+                uint8_t w = (x > 0 && screen_buffer[y][x-1] == CHAR_WALL_CROSS);
+                
+                if (n && s) screen_buffer[y][x] = CHAR_WALL;
+                else if (e && w) screen_buffer[y][x] = CHAR_WALL_H;
+                else if (s && e) screen_buffer[y][x] = CHAR_WALL_TL;
+                else if (s && w) screen_buffer[y][x] = CHAR_WALL_TR;
+                else if (n && e) screen_buffer[y][x] = CHAR_WALL_BL;
+                else if (n && w) screen_buffer[y][x] = CHAR_WALL_BR;
+            }
         }
     }
     
     /* Draw other players */
-    for (i = 0; i < world->other_player_count; i++) {
-        const player_state_t *player = &world->other_players[i];
+    for (i = 0; i < other_player_count; i++) {
+        const player_state_t *player = &other_players[i];
         if (player->x < DISPLAY_WIDTH && player->y < DISPLAY_HEIGHT) {
             display_draw_char(player->x, player->y, CHAR_ENEMY);
         }
     }
     
     /* Draw local player (last so it appears on top) */
-    if (world->local_player.x < DISPLAY_WIDTH && world->local_player.y < DISPLAY_HEIGHT) {
-        display_draw_char(world->local_player.x, world->local_player.y, CHAR_PLAYER);
+    if (local_player && local_player->x < DISPLAY_WIDTH && local_player->y < DISPLAY_HEIGHT) {
+        display_draw_char(local_player->x, local_player->y, CHAR_PLAYER);
     }
 }
 

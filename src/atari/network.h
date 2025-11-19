@@ -50,5 +50,6 @@ int16_t kz_network_get_player_status(const char *player_id, uint8_t *response, u
 int16_t kz_network_move_player(const char *player_id, const char *direction,
                                uint8_t *response, uint16_t response_len);
 int16_t kz_network_leave_player(const char *player_id, uint8_t *response, uint16_t response_len);
+int16_t kz_network_next_level(uint8_t *response, uint16_t response_len);
 
 #endif /* KILLZONE_NETWORK_H */

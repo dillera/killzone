@@ -37,7 +37,7 @@ void display_show_welcome(const char *server_name);
 
 /* Rendering */
 void display_clear(void);
-void display_draw_world(const world_state_t *world);
+void display_draw_world(void);
 void display_draw_status(const player_state_t *player);
 void display_draw_message(const char *message);
 void display_update(void);

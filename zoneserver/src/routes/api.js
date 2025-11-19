@@ -41,6 +41,29 @@ function createApiRoutes(world) {
   });
 
   /**
+   * POST /api/world/next-level
+   * Switch world to the next level
+   */
+  router.post('/world/next-level', (req, res) => {
+    // Simple toggle for now: level1 <-> level2
+    const currentLevel = world.level.levelName;
+    let nextLevel = 'level1';
+    
+    if (currentLevel === 'level1') {
+        nextLevel = 'level2';
+    }
+    
+    const success = world.loadLevel(nextLevel);
+    console.log(`  🔄 Switching world to level: ${nextLevel} (${success ? 'Success' : 'Failed'})`);
+    
+    res.status(200).json({
+        success: success,
+        currentLevel: nextLevel,
+        worldState: world.getState()
+    });
+  });
+
+  /**
    * POST /api/player/join
    * Register new player and return initial state
    */

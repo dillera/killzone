@@ -36,6 +36,22 @@ class World {
   }
 
   /**
+   * Load a specific level
+   * @param {string} levelName - Name of level to load
+   * @returns {boolean} - Success status
+   */
+  loadLevel(levelName) {
+    const result = this.level.loadFromFile(levelName);
+    if (result) {
+      // Clear mobs as they might be in walls now
+      this.mobs.clear();
+      this.respawnMobs(3);
+      this.timestamp = Date.now(); // Force update
+    }
+    return result;
+  }
+
+  /**
    * Add a player to the world
    * @param {Player} player - Player object to add
    * @returns {boolean} - Success status

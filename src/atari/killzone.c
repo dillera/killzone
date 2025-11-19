@@ -294,7 +294,10 @@ void handle_state_playing(void) {
     if (player && player->x < 255 && player->y < 255) {
         /* Full redraw on first render or when player count changes (rejoin detection) or when refresh requested */
         static int world_rendered = 0;
+        static uint16_t last_wall_count = 0;
+        uint16_t current_wall_count;
         others = state_get_other_players(&player_count);
+        state_get_walls(&current_wall_count);
         
         /* Check if refresh was requested */
         if (force_screen_refresh) {
@@ -302,55 +305,27 @@ void handle_state_playing(void) {
             force_screen_refresh = 0;
         }
         
+        /* Check for level change (wall count changed) */
+        if (current_wall_count != last_wall_count) {
+            world_rendered = 0;
+            last_wall_count = current_wall_count;
+        }
+        
         if (!world_rendered || (last_other_count != 255 && last_other_count != player_count)) {
-            clrscr();
-            
-            /* Draw world line by line */
-            for (y = 0; y < DISPLAY_HEIGHT; y++) {
-                gotoxy(0, y);
-                for (x = 0; x < DISPLAY_WIDTH; x++) {
-                    printf(".");
-                }
-            }
-            
-            /* Draw walls using ATASCII characters */
-            {
-                uint16_t wall_count;
-                const wall_t *walls = state_get_walls(&wall_count);
-                for (i = 0; i < wall_count; i++) {
-                    if (walls[i].x < DISPLAY_WIDTH && walls[i].y < DISPLAY_HEIGHT) {
-                        gotoxy(walls[i].x, walls[i].y);
-                        printf("%c", CHAR_WALL);
-                    }
-                }
-            }
-            
-            /* Draw other entities - # for players, ^ for hunter mobs, * for regular mobs */
-            for (i = 0; i < player_count; i++) {
-                if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
-                    gotoxy(others[i].x, others[i].y);
-                    /* Use # for real players, ^ for hunter mobs, * for regular mobs */
-                    if (strcmp(others[i].type, "player") == 0) {
-                        entity_char = '#';
-                    } else if (others[i].isHunter) {
-                        entity_char = '^';
-                    } else {
-                        entity_char = '*';
-                    }
-                    printf("%c", entity_char);
-                }
-            }
-            
-            /* Draw local player as @ */
-            if (player->x < DISPLAY_WIDTH && player->y < DISPLAY_HEIGHT) {
-                gotoxy(player->x, player->y);
-                printf("@");
-            }
+            /* Use display module for full redraw */
+            display_draw_world();
+            display_update();
             
             last_player_x = player->x;
             last_player_y = player->y;
             last_other_count = player_count;
             world_rendered = 1;
+            
+            /* Initialize last positions for incremental updates */
+            for (i = 0; i < player_count; i++) {
+                last_other_positions[i * 2] = others[i].x;
+                last_other_positions[i * 2 + 1] = others[i].y;
+            }
         } else if (player->x != last_player_x || player->y != last_player_y) {
             /* Incremental update: only redraw changed positions */
             
@@ -447,6 +422,16 @@ void handle_state_playing(void) {
             case 31:   /* Atari right arrow */
                 direction = "right";
                 break;
+            case 'L':
+                /* Next Level command */
+                bytes_read = kz_network_next_level(response_buffer, RESPONSE_BUFFER_SIZE);
+                if (bytes_read > 0) {
+                    /* Parse new state (including new walls) */
+                    parse_world_state(response_buffer, (uint16_t)bytes_read);
+                    /* Force redraw to show new level */
+                    force_screen_refresh = 1;
+                }
+                return;
             case 'r':
             case 'R':
                 /* Trigger full screen redraw */

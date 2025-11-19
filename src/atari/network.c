@@ -156,3 +156,7 @@ int16_t kz_network_leave_player(const char *player_id, uint8_t *response, uint16
     snprintf(body_buf, sizeof(body_buf), "{\"id\":\"%s\"}", player_id);
     return kz_network_http_post("/api/player/leave", body_buf, response, response_len);
 }
+
+int16_t kz_network_next_level(uint8_t *response, uint16_t response_len) {
+    return kz_network_http_post("/api/world/next-level", "{}", response, response_len);
+}
