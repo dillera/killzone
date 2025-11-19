@@ -14,8 +14,8 @@ static char path_buf[256];
 static char body_buf[256];
 
 static void kz_delay(void) {
-    volatile int i;
-    for (i = 0; i < 1000; i++);
+    volatile long i;
+    for (i = 0; i < 100000; i++);
 }
 
 static void build_device_spec(const char *path) {
