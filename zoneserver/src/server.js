@@ -21,6 +21,14 @@ const world = new World(40, 20, levelName);
 function spawnMobs() {
   world.respawnMobs(3);
   console.log(`🎮 Spawned initial mobs`);
+  
+  // Debug walls
+  if (world.level && world.level.walls) {
+      const walls = world.level.getWalls();
+      if (walls.length > 0) {
+          console.log(`🧱 Wall Debug (First 3): ${JSON.stringify(walls.slice(0, 3))}`);
+      }
+  }
 }
 
 // Create Express app

@@ -177,8 +177,23 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     /* Line 21: Clear for server messages (combat, kills, etc) */
     /* Messages written by display_draw_combat_message() */
     
-    /* Line 22: Separator */
-    cputsxy(0, 22, "----------------------------------------");
+    /* Line 22: Debug info for walls instead of separator */
+    /* cputsxy(0, 22, "----------------------------------------"); */
+    {
+        uint16_t w_count;
+        const wall_t *walls = state_get_walls(&w_count);
+        if (w_count > 40) {
+            snprintf(line_buf, sizeof(line_buf), "W[40]:(%d,%d) Total:%d", 
+                     walls[40].x, walls[40].y, w_count);
+            cputsxy(0, 22, line_buf);
+        } else if (w_count > 0) {
+            snprintf(line_buf, sizeof(line_buf), "W[0]:(%d,%d) Total:%d", 
+                     walls[0].x, walls[0].y, w_count);
+            cputsxy(0, 22, line_buf);
+        } else {
+            cputsxy(0, 22, "No walls found");
+        }
+    }
     
     /* Line 23: Command help */
     cputsxy(0, 23, "WASD=Move R=Refresh Q=Quit");
