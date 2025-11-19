@@ -89,6 +89,10 @@ void state_set_walls(const wall_t *walls, uint16_t count);
 const wall_t *state_get_walls(uint16_t *count);
 void state_clear_walls(void);
 
+/* Level */
+void state_set_level_name(const char *name);
+const char *state_get_level_name(void);
+
 /* World dimensions */
 void state_set_world_dimensions(uint8_t width, uint8_t height);
 uint8_t state_get_world_width(void);

@@ -17,6 +17,7 @@ static uint16_t wall_count = 0;
 static uint8_t world_width = 40;
 static uint8_t world_height = 20;
 static uint16_t world_ticks = 0;
+static char current_level_name[32] = "";
 static char error_message[128];
 static int is_rejoining = 0;
 static int is_connected = 1;  /* Track connection state (1=connected, 0=disconnected) */
@@ -29,8 +30,11 @@ void state_init(void) {
     memset(&local_player, 0, sizeof(local_player));
     memset(other_players, 0, sizeof(other_players));
     other_player_count = 0;
+    memset(walls, 0, sizeof(walls));
+    wall_count = 0;
     world_width = 40;
     world_height = 20;
+    memset(current_level_name, 0, sizeof(current_level_name));
     memset(error_message, 0, sizeof(error_message));
 }
 
@@ -180,6 +184,23 @@ const wall_t *state_get_walls(uint16_t *count) {
 void state_clear_walls(void) {
     memset(walls, 0, sizeof(walls));
     wall_count = 0;
+}
+
+/**
+ * Set level name
+ */
+void state_set_level_name(const char *name) {
+    if (name) {
+        strncpy(current_level_name, name, sizeof(current_level_name) - 1);
+        current_level_name[sizeof(current_level_name) - 1] = '\0';
+    }
+}
+
+/**
+ * Get level name
+ */
+const char *state_get_level_name(void) {
+    return current_level_name;
 }
 
 /**

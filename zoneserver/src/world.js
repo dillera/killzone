@@ -430,6 +430,7 @@ class World {
     return {
       width: this.width,
       height: this.height,
+      level: this.level ? this.level.levelName : 'unknown',
       players: allEntities,
       walls: this.level ? this.level.getWalls() : [],
       ticks: this.ticks,

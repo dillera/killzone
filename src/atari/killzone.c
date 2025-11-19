@@ -915,8 +915,25 @@ void parse_world_state(const uint8_t *response, uint16_t len) {
         display_draw_combat_message(kill_msg);
     }
     
-    /* Parse walls from response */
-    parse_walls_from_response(response, len);
+    /* Optimization: Only parse walls if level changed */
+    {
+        char level_name[32] = "";
+        /* Try to get level name from response */
+        if (json_get_string(json, "level", level_name, sizeof(level_name)) > 0) {
+            /* Check if level changed or if we have no walls yet */
+            uint16_t wc;
+            state_get_walls(&wc);
+            
+            if (strcmp(level_name, state_get_level_name()) != 0 || wc == 0) {
+                /* Level changed or init! Update name and parse walls */
+                state_set_level_name(level_name);
+                parse_walls_from_response(response, len);
+            }
+        } else {
+            /* Fallback: Always parse if no level name provided */
+            parse_walls_from_response(response, len);
+        }
+    }
     
     /* Parse entities from players array */
     parse_entities_from_response(response, len);
