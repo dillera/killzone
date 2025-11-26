@@ -1,14 +1,19 @@
 # KillZone Atari 8-bit Client Build System
 # Builds C code with cc65 toolchain for Atari 800/XL target
 
+# FujiNet Library
+FN_VERSION = 4.8.1
+FN_DIR = ../../_cache/fujinet-lib/$(FN_VERSION)-atari
+FN_LIB = $(FN_DIR)/fujinet-atari-$(FN_VERSION).lib
+
 # Compiler and tools
 CC = cl65
-CFLAGS = -t atari -Os --register-vars -Wall -Wextra
+CFLAGS = -t atari -Os --register-vars -I $(FN_DIR)
 LDFLAGS = 
 
 # Source files
-SOURCES = main.c network.c state.c display.c json.c hello.c
-HEADERS = network.h state.h display.h json.h hello.h
+SOURCES = killzone.c network.c state.c display.c json.c parser.c
+HEADERS = network.h state.h display.h json.h parser.h wall_config.h
 OBJECTS = $(SOURCES:.c=.o)
 
 # Output
@@ -26,7 +31,7 @@ all: $(TARGET)
 
 # Build target
 $(TARGET): $(SOURCES) $(HEADERS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES) $(FN_LIB)
 	@echo "Build complete: $(TARGET)"
 
 # Clean build artifacts

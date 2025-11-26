@@ -1,6 +1,6 @@
 /**
  * KillZone Display Module - Atari 8-bit
- * 
+ *
  * Text-based display rendering for Atari.
  * Shows player position, world state, and game status.
  */
@@ -8,8 +8,8 @@
 #ifndef KILLZONE_DISPLAY_H
 #define KILLZONE_DISPLAY_H
 
-#include <stdint.h>
 #include "state.h"
+#include <stdint.h>
 
 /* Display dimensions */
 #define DISPLAY_WIDTH 40
@@ -22,13 +22,7 @@
 #define CHAR_PLAYER '@'
 #define CHAR_ENEMY '*'
 /* ATASCII box drawing characters for walls */
-#define CHAR_WALL 1  /* DEC 1 - vertical bar */
-#define CHAR_WALL_H 2  /* DEC 2 - horizontal bar */
-#define CHAR_WALL_TL 3  /* DEC 3 - top-left corner */
-#define CHAR_WALL_TR 4  /* DEC 4 - top-right corner */
-#define CHAR_WALL_BL 5  /* DEC 5 - bottom-left corner */
-#define CHAR_WALL_BR 18  /* DEC 18 - bottom-right corner */
-#define CHAR_WALL_CROSS 19  /* DEC 19 - cross/intersection */
+#include "wall_config.h"
 
 /* Initialization and lifecycle */
 void display_init(void);
@@ -43,8 +37,9 @@ void display_draw_message(const char *message);
 void display_update(void);
 
 /* Status bar */
-void display_draw_status_bar(const char *player_name, uint8_t player_count, 
-                             const char *connection_status, uint16_t world_ticks);
+void display_draw_status_bar(const char *player_name, uint8_t player_count,
+                             const char *connection_status,
+                             uint16_t world_ticks);
 void display_draw_command_help(void);
 void display_draw_combat_message(const char *message);
 
