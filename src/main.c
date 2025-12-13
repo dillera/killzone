@@ -340,18 +340,16 @@ void handle_state_playing(void) {
                 /* Check if combat occurred */
                 if (move_res.collision) {
                     int msg_num;
+                    int delay;
                     
                     /* Display combat messages */
                     for (msg_num = 0; msg_num < move_res.message_count; msg_num++) {
                         /* Display message on fixed line */
                         display_draw_combat_message(move_res.messages[msg_num]);
                         
-                        /* Pause briefly so player can read it */
-                        {
-                            int delay;
-                            for (delay = 0; delay < 15000; delay++) {
-                                /* Busy wait */
-                            }
+                        /* Pause much longer so player can read it */
+                        for (delay = 0; delay < 50000; delay++) {
+                            /* Busy wait */
                         }
                     }
                     
