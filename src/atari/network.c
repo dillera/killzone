@@ -128,6 +128,17 @@ static uint8_t kz_network_join_player_tcp(const char *name, player_state_t *play
     player->y = buf[1];
     player->health = buf[2];
     
+    /* Read server version: [VerLen] [Version] */
+    len = network_read(tcp_device_spec, buf, 1);
+    if (len == 1 && buf[0] > 0 && buf[0] < 16) {
+        int verLen = buf[0];
+        len = network_read(tcp_device_spec, buf, verLen);
+        if (len == verLen) {
+            buf[verLen] = '\0';
+            state_set_server_version((char*)buf);
+        }
+    }
+    
     strcpy(player->status, "alive");
     strcpy(player->type, "player");
     player->isHunter = 0;

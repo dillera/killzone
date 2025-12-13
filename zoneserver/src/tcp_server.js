@@ -102,9 +102,11 @@ class TcpServer {
 
         socket.player = player;
 
-        // Response: 0x01 [ID_LEN] [ID] [X] [Y] [Health]
+        // Response: 0x01 [ID_LEN] [ID] [X] [Y] [Health] [VER_LEN] [VERSION]
+        const pkg = require('../package.json');
+        const verBuf = Buffer.from(pkg.version);
         const idBuf = Buffer.from(player.id);
-        const resp = Buffer.alloc(1 + 1 + idBuf.length + 1 + 1 + 1);
+        const resp = Buffer.alloc(1 + 1 + idBuf.length + 1 + 1 + 1 + 1 + verBuf.length);
         let offset = 0;
         resp.writeUInt8(0x01, offset++);
         resp.writeUInt8(idBuf.length, offset++);
@@ -112,6 +114,8 @@ class TcpServer {
         resp.writeUInt8(Math.floor(player.x), offset++);
         resp.writeUInt8(Math.floor(player.y), offset++);
         resp.writeUInt8(player.health, offset++);
+        resp.writeUInt8(verBuf.length, offset++);
+        verBuf.copy(resp, offset); offset += verBuf.length;
 
         socket.write(resp);
     }

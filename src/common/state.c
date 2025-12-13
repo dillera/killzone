@@ -204,3 +204,22 @@ void state_set_world_ticks(uint16_t ticks) {
 uint16_t state_get_world_ticks(void) {
     return world_ticks;
 }
+
+static char server_version[16] = "?.?.?";
+
+/**
+ * Set server version
+ */
+void state_set_server_version(const char *version) {
+    if (version) {
+        strncpy(server_version, version, sizeof(server_version) - 1);
+        server_version[sizeof(server_version) - 1] = '\0';
+    }
+}
+
+/**
+ * Get server version
+ */
+const char *state_get_server_version(void) {
+    return server_version;
+}

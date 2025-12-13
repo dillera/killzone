@@ -1,6 +1,6 @@
 {
   "name": "killzone-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "KillZone multiplayer game server",
   "main": "src/server.js",
   "scripts": {
@@ -10,7 +10,11 @@
     "test:coverage": "NODE_ENV=test jest --coverage",
     "test:integration": "NODE_ENV=test jest tests/integration.test.js"
   },
-  "keywords": ["game", "multiplayer", "atari"],
+  "keywords": [
+    "game",
+    "multiplayer",
+    "atari"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

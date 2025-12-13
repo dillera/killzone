@@ -67,6 +67,8 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
                              const char *connection_status, uint16_t world_ticks) {
     static char line_buf[41];
     static char ticks_buf[11];
+    static char ver_buf[16];
+    const char *server_ver;
     
     if (!player_name || !connection_status) {
         return;
@@ -85,8 +87,13 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     /* Line 22: Separator */
     cputsxy(0, 22, "----------------------------------------");
     
-    /* Line 23: Command help */
+    /* Line 23: Command help on left, version on right */
     cputsxy(0, 23, "WASD=Move R=Refresh Q=Quit");
+    
+    /* Version display at far right: C1.1.0|S1.1.0 */
+    server_ver = state_get_server_version();
+    snprintf(ver_buf, sizeof(ver_buf), "C%s|S%s", CLIENT_VERSION, server_ver);
+    cputsxy(40 - strlen(ver_buf), 23, ver_buf);
 }
 
 /**
@@ -123,8 +130,17 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     static uint8_t last_other_positions[MAX_OTHER_PLAYERS * 2];  /* x,y pairs */
     static uint8_t last_other_count = 255;
     static int world_rendered = 0; /* Moved declaration to top */
+    static int positions_initialized = 0;
     uint8_t x, y, i;
     char entity_char;
+    
+    /* Initialize position tracking to invalid values on first call */
+    if (!positions_initialized) {
+        for (i = 0; i < MAX_OTHER_PLAYERS * 2; i++) {
+            last_other_positions[i] = 255;
+        }
+        positions_initialized = 1;
+    }
     
     if (!local || local->x >= 255 || local->y >= 255) {
         return;
@@ -205,8 +221,8 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
             
             /* If position changed, update it */
             if (old_x != new_x_other || old_y != new_y_other) {
-                /* Erase old position (if it was valid) */
-                if (old_x < DISPLAY_WIDTH && old_y < DISPLAY_HEIGHT && (old_x != 0 || old_y != 0)) {
+                /* Erase old position (if it was valid, i.e. not 255) */
+                if (old_x < DISPLAY_WIDTH && old_y < DISPLAY_HEIGHT) {
                     gotoxy(old_x, old_y);
                     printf("%c", CHAR_EMPTY);
                 }

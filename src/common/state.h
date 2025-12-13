@@ -81,6 +81,10 @@ uint8_t state_get_world_height(void);
 void state_set_world_ticks(uint16_t ticks);
 uint16_t state_get_world_ticks(void);
 
+/* Server version */
+void state_set_server_version(const char *version);
+const char *state_get_server_version(void);
+
 /* Error handling */
 void state_set_error(const char *message);
 const char *state_get_error(void);
