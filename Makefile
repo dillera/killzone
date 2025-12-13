@@ -1,14 +1,10 @@
 # Sample Makefile For FujiNet Applications
 
-TARGETS = atari
+TARGETS = atari coco
 PROGRAM := killzone
 
 # Set this to the version of FN-LIB you wish to use in this project:
-export FUJINET_LIB_VERSION := 4.8.1
-
-# Set DEBUG to true or false to see more or less output about what is going on.
-DEBUG := false
-export DEBUG
+export FUJINET_LIB_VERSION := 4.9.0
 
 SUB_TASKS := clean disk test release
 .PHONY: all help $(SUB_TASKS)

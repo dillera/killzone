@@ -1,10 +1,6 @@
 ###################################################################
 # Platform Mapping, OS specifics, and Emulator settings
 ###################################################################
-ifeq ($(DEBUG),true)
-    $(info >Starting os.mk)
-endif
-
 
 ifeq ($(CURRENT_TARGET),)
 $(error Missing value for CURRENT_TARGET)
@@ -23,6 +19,8 @@ CURRENT_PLATFORM_plus4 := c64
 CURRENT_PLATFORM_cbm510 := c64
 CURRENT_PLATFORM_cbm610 := c64
 CURRENT_PLATFORM_vic20 := c64
+CURRENT_PLATFORM_pmd85 := pmd85
+CURRENT_PLATFORM_coco := coco
 
 CURRENT_PLATFORM = $(CURRENT_PLATFORM_$(CURRENT_TARGET))
 

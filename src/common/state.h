@@ -8,7 +8,12 @@
 #ifndef KILLZONE_STATE_H
 #define KILLZONE_STATE_H
 
+#ifdef _CMOC_VERSION_
+#include <cmoc.h>
+#include <coco.h>
+#else
 #include <stdint.h>
+#endif
 
 /* Maximum number of other players visible */
 #define MAX_OTHER_PLAYERS 10

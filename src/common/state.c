@@ -5,7 +5,12 @@
  */
 
 #include "state.h"
+#ifdef _CMOC_VERSION_
+#include <cmoc.h>
+#include <coco.h>
+#else
 #include <string.h>
+#endif
 
 /* Global state */
 static client_state_t current_state = STATE_INIT;
@@ -15,7 +20,7 @@ static uint8_t other_player_count = 0;
 static uint8_t world_width = 40;
 static uint8_t world_height = 20;
 static uint16_t world_ticks = 0;
-static char error_message[128];
+char error_message[128];
 static int is_rejoining = 0;
 static int is_connected = 1;  /* Track connection state (1=connected, 0=disconnected) */
 
@@ -179,8 +184,8 @@ uint8_t state_get_world_height(void) {
  */
 void state_set_error(const char *message) {
     if (message) {
+        memset(error_message, 0, sizeof(error_message));
         strncpy(error_message, message, sizeof(error_message) - 1);
-        error_message[sizeof(error_message) - 1] = '\0';
     }
 }
 

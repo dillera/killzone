@@ -7,9 +7,16 @@
 
 #include "display.h"
 #include "network.h"
+#ifdef _CMOC_VERSION_
+#include <cmoc.h>
+#include <coco.h>
+#include "conio_wrapper.h"
+#include "snprintf.h"
+#else
 #include <stdio.h>
 #include <string.h>
 #include <conio.h>
+#endif
 
 /* Screen buffer */
 static char screen_buffer[DISPLAY_HEIGHT][DISPLAY_WIDTH];
@@ -18,6 +25,9 @@ static char screen_buffer[DISPLAY_HEIGHT][DISPLAY_WIDTH];
  * Initialize display system
  */
 void display_init(void) {
+#ifdef _CMOC_VERSION_
+    hirestxt_init();
+#endif
     display_clear();
     clrscr();  /* Clear screen using conio */
 }
@@ -139,7 +149,7 @@ void display_update(void) {
     for (y = 0; y < DISPLAY_HEIGHT; y++) {
         gotoxy(0, y);
         for (x = 0; x < DISPLAY_WIDTH; x++) {
-            printf("%c", screen_buffer[y][x]);
+            cputc(screen_buffer[y][x]);
         }
     }
 }

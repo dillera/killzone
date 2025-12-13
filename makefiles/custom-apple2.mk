@@ -1,16 +1,10 @@
-###################################################################
-# Apple II
-###################################################################
-ifeq ($(DEBUG),true)
-    $(info >>>Starting custom-apple2.mk)
-endif
-
-
-#################################################################
+################################################################
 # COMPILE FLAGS
-#LDFLAGS += --start-addr 0x4000
 
-#################################################################
+# Using second screen requires higher starting address
+LDFLAGS += --start-addr 0x0C00
+
+################################################################
 # DISK creation
 
 SUFFIX =
@@ -18,28 +12,24 @@ DISK_TASKS += .po
 AUTOBOOT := -l
 APPLE_TOOLS_DIR := ./apple-tools
 
+PROG_XTRA :=
+ifeq ($(CURRENT_TARGET),apple2enh)
+    PROG_XTRA = -enh
+endif
+
 .po:
-	$(call RMFILES,$(DIST_DIR)/$(PROGRAM_TGT).po)
-	$(call RMFILES,$(DIST_DIR)/$(PROGRAM))
-
-# $(PROGRAM) is the name of the app (like weather) - we'll use that name to add with add-file.sh
-# $(PROGRAM_TGT) is the name of the current target build (apple2 / apple2enh)
-# if the program name is too large it won't autostart!
-
-	$(APPLE_TOOLS_DIR)/mk-bitsy.sh $(DIST_DIR)/$(PROGRAM_TGT).po $(PROGRAM_TGT)$(SUFFIX)
-	$(APPLE_TOOLS_DIR)/add-file.sh $(AUTOBOOT) $(DIST_DIR)/$(PROGRAM_TGT).po $(DIST_DIR)/$(PROGRAM_TGT)$(SUFFIX) $(PROGRAM)
-
+	$(call RMFILES,$(DIST_DIR)/$(PROGRAM)$(PROG_XTRA).po)
+	$(APPLE_TOOLS_DIR)/mk-bitsy.sh $(DIST_DIR)/$(PROGRAM)$(PROG_XTRA).po $(PROGRAM_TGT)$(SUFFIX)
+	$(APPLE_TOOLS_DIR)/add-file.sh $(AUTOBOOT) $(DIST_DIR)/$(PROGRAM)$(PROG_XTRA).po $(DIST_DIR)/$(PROGRAM_TGT)$(SUFFIX) $(PROGRAM)
 
 # Applewin debug script
 .gendebug: $(PROGRAM_TGT)
-	@if [ -f "$(BUILD_DIR)/$(PROGRAM_TGT).lbl" ]; then \
+	@if [ -f "build/$(PROGRAM_TGT).lbl" ]; then \
 		echo "Generating debug.scr script for AppleWin"; \
-		echo 'echo "Loading symbols"' > $(BUILD_DIR)/debug.scr; \
-		awk '{printf("sym %s = %s\n", substr($$3, 2), $$2)}' < $(BUILD_DIR)/$(PROGRAM_TGT).lbl >> $(BUILD_DIR)/debug.scr; \
-		echo 'bpx _main' >> $(BUILD_DIR)/debug.scr; \
-		echo 'bpx _debug' >> $(BUILD_DIR)/debug.scr; \
-		echo 'bpx _network_open' >> $(BUILD_DIR)/debug.scr; \
-		echo 'bpx _sp_init' >> $(BUILD_DIR)/debug.scr; \
+		echo 'echo "Loading symbols"' > build/debug.scr; \
+		awk '{printf("sym %s = %s\n", substr($$3, 2), $$2)}' < build/$(PROGRAM_TGT).lbl >> build/debug.scr; \
+		echo 'bpx _main' >> build/debug.scr; \
+		echo 'bpx _debug' >> build/debug.scr; \
 	fi
 
 ALL_TASKS += .gendebug

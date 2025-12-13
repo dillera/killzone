@@ -1,23 +1,20 @@
-###################################################################
-# Atari
-###################################################################
-ifeq ($(DEBUG),true)
-    $(info >>>Starting custom-atari.mk)
-endif
-
 ################################################################
 # COMPILE FLAGS
+
 # reserved memory for graphics
 # LDFLAGS += -Wl -D,__RESERVED_MEMORY__=0x2000
 
 #LDFLAGS += --start-addr 0x4400
 #LDFLAGS += -C cfg/atari.cfg
 
+CFLAGS += -DBWC_CUSTOM_CPUTC
+
 ################################################################
 # DISK creation
 
 SUFFIX = .com
 DISK_TASKS += .atr
+ASSETS_DIR := assets
 PICOBOOT_DOWNLOAD_URL = https://github.com/FujiNetWIFI/assets/releases/download/picobin/picoboot.bin
 
 # atari cache dir
@@ -48,13 +45,15 @@ ATARI_CACHE_DIR := $(CACHE_DIR)/atari
 
 # Specify ATARI_EMULATOR=[ALTIRRA|ATARI800] to set which one to run, default is ALTIRRA
 
-ALTIRRA ?= $(ALTIRRA_HOME)/Altirra64.exe \
+ALTIRRA ?= $(ALTIRRA_BIN) \
   $(XS)/portable $(XS)/portablealt:altirra-debug.ini \
+  $(XS)/debug \
+  $(XS)/debugcmd: ".loadsym build\$(PROGRAM).$(CURRENT_TARGET).lbl" \
 
 # Additional args that can be copied into the above lines
-#   $(XS)/debug \
-#   $(XS)/debugcmd: ".loadsym build\$(PROGRAM).$(CURRENT_TARGET).lbl" \
 #   $(XS)/debugcmd: "bp _debug" \
+#   $(XS)/debugcmd: "bp _network_open" \
+#   $(XS)/debugcmd: "bp _bus_status" \
 
 ATARI800 ?= $(ATARI800_HOME)/atari800 \
   -xl -nobasic -ntsc -xl-rev custom -config atari800-debug.cfg -run

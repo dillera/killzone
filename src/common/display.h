@@ -8,7 +8,12 @@
 #ifndef KILLZONE_DISPLAY_H
 #define KILLZONE_DISPLAY_H
 
+#ifdef _CMOC_VERSION_
+#include <cmoc.h>
+#include <coco.h>
+#else
 #include <stdint.h>
+#endif
 #include "state.h"
 
 /* Display dimensions */
