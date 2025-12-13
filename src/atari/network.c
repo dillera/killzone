@@ -228,21 +228,33 @@ uint8_t kz_network_get_world_state(void) {
         char typeChar;
         uint8_t x, y;
         const player_state_t *local;
+        uint8_t msgLen;
 
         if (!tcp_connected) return 0;
         
         buf[0] = 0x03;
         if (network_write(tcp_device_spec, buf, 1) != FN_ERR_OK) return 0;
         
-        /* Resp: 0x03 [Count] [TicksLow] [TicksHigh] -> ... */
-        len = network_read(tcp_device_spec, buf, 4);
-        if (len < 4 || buf[0] != 0x03) return 0;
+        /* Resp: 0x03 [Count] [TicksLow] [TicksHigh] [MsgLen] [Msg...] [Entities...] */
+        len = network_read(tcp_device_spec, buf, 5);
+        if (len < 5 || buf[0] != 0x03) return 0;
         
         count = buf[1];
         {
             uint16_t ticks = buf[2] | (buf[3] << 8);
             state_set_world_ticks(ticks);
         }
+        
+        /* Read message if present */
+        msgLen = buf[4];
+        if (msgLen > 0 && msgLen < 40) {
+            len = network_read(tcp_device_spec, buf, msgLen);
+            if (len == msgLen) {
+                buf[msgLen] = '\0';
+                state_set_combat_message((char*)buf);
+            }
+        }
+        
         local = state_get_local_player();
         
         for (i = 0; i < count; i++) {

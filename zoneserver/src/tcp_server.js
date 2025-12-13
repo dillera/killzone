@@ -220,13 +220,22 @@ class TcpServer {
 
         const count = Math.min(all.length, 255);
 
-        // Format: 0x03 [Count] [TicksLow] [TicksHigh] [Entity1: Type X Y] [Entity2: ...]
-        const buf = Buffer.alloc(4 + count * 3);
+        // Get any pending combat message (e.g., from hunter attacks)
+        let combatMsg = worldState.lastKillMessage || '';
+        if (combatMsg.length > 39) {
+            combatMsg = combatMsg.substring(0, 39);
+        }
+        const msgBuf = Buffer.from(combatMsg);
+
+        // Format: 0x03 [Count] [TicksLow] [TicksHigh] [MsgLen] [Msg...] [Entity1: Type X Y] [Entity2: ...]
+        const buf = Buffer.alloc(5 + msgBuf.length + count * 3);
         let offset = 0;
         buf.writeUInt8(0x03, offset++);
         buf.writeUInt8(count, offset++);
         buf.writeUInt8(ticks & 0xFF, offset++);        // Ticks low byte
         buf.writeUInt8((ticks >> 8) & 0xFF, offset++); // Ticks high byte
+        buf.writeUInt8(msgBuf.length, offset++);       // Message length
+        msgBuf.copy(buf, offset); offset += msgBuf.length;
 
         for (let i = 0; i < count; i++) {
             const ent = all[i];
