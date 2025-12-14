@@ -10,6 +10,7 @@ const cors = require('cors');
 const World = require('./world');
 const Mob = require('./mob');
 const createApiRoutes = require('./routes/api');
+const TcpServer = require('./tcp_server');
 
 const PORT = process.env.PORT || 3000;
 
@@ -34,35 +35,35 @@ app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   const method = req.method.padEnd(6);
   const path = req.path;
-  
+
   // Get client IP (handle proxies and direct connections)
   const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
   const ipOnly = clientIp.split(',')[0].trim();  // Get first IP if multiple
-  
+
   // Condensed logging for /state requests (they're frequent)
   const isStateRequest = path === '/world/state' || path.includes('/world/state');
-  
+
   // Log request details
   let logMsg = `[${timestamp}] ${method} ${path}`;
-  
+
   // Add body info for POST/PUT requests
   if ((req.method === 'POST' || req.method === 'PUT') && req.body && Object.keys(req.body).length > 0) {
     logMsg += ` | Body: ${JSON.stringify(req.body)}`;
   }
-  
+
   // For state requests, use condensed format with client IP
   if (isStateRequest) {
     logMsg += ` [state] from ${ipOnly}`;
   }
-  
+
   console.log(logMsg);
-  
+
   // Capture response status
   const originalJson = res.json;
-  res.json = function(data) {
+  res.json = function (data) {
     const statusCode = res.statusCode;
     const statusColor = statusCode >= 400 ? '❌' : '✅';
-    
+
     // Condensed response logging for state requests
     if (isStateRequest) {
       console.log(`  ${statusColor} [${statusCode}]`);
@@ -71,7 +72,7 @@ app.use((req, res, next) => {
     }
     return originalJson.call(this, data);
   };
-  
+
   next();
 });
 
@@ -98,14 +99,18 @@ app.use((req, res) => {
 // Start server only if not in test environment
 let server;
 if (process.env.NODE_ENV !== 'test') {
+  // Start TCP Server
+  const tcpServer = new TcpServer(world, 3001);
+  tcpServer.start();
+
   server = app.listen(PORT, () => {
     console.log(`KillZone Server running on http://localhost:${PORT}`);
     console.log(`World dimensions: 40x20`);
     console.log(`API health check: GET http://localhost:${PORT}/api/health`);
-    
+
     // Spawn mobs for testing
     spawnMobs();
-    
+
     // Server maintenance loop
     setInterval(() => {
       // Every 100 ticks: respawn mobs if needed
@@ -116,7 +121,7 @@ if (process.env.NODE_ENV !== 'test') {
           console.log(`  🎮 Respawned ${spawnedMobs.length} mobs${hunterInfo}`);
         }
       }
-      
+
       // Every 30 seconds: clean up inactive players (2 min timeout)
       if (world.ticks % 600 === 0) {
         const inactivePlayers = world.cleanupInactivePlayers(120000);

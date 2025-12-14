@@ -209,3 +209,55 @@ void state_set_world_ticks(uint16_t ticks) {
 uint16_t state_get_world_ticks(void) {
     return world_ticks;
 }
+
+static char server_version[16] = "?.?.?";
+
+/**
+ * Set server version
+ */
+void state_set_server_version(const char *version) {
+    if (version) {
+        strncpy(server_version, version, sizeof(server_version) - 1);
+        server_version[sizeof(server_version) - 1] = '\0';
+    }
+}
+
+/**
+ * Get server version
+ */
+const char *state_get_server_version(void) {
+    return server_version;
+}
+
+static char combat_message[41] = "";
+static uint8_t combat_message_frames = 0;
+
+/**
+ * Set combat message (displays for ~30 frames then clears)
+ */
+void state_set_combat_message(const char *msg) {
+    if (msg && msg[0] != '\0') {
+        strncpy(combat_message, msg, 40);
+        combat_message[40] = '\0';
+        combat_message_frames = 30;  /* Show for 30 frames */
+    }
+}
+
+/**
+ * Get combat message (returns empty string if expired)
+ */
+const char *state_get_combat_message(void) {
+    return combat_message;
+}
+
+/**
+ * Tick combat message counter - call each frame
+ */
+void state_tick_combat_message(void) {
+    if (combat_message_frames > 0) {
+        combat_message_frames--;
+        if (combat_message_frames == 0) {
+            combat_message[0] = '\0';  /* Clear message */
+        }
+    }
+}
