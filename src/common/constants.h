@@ -29,10 +29,10 @@
 #define PLAYER_NAME_MAX 32
 
 /* Server Configuration */
-#define SERVER_HOST "127.0.0.1"
+#define SERVER_HOST "fujinet.diller.org"
 #define SERVER_PORT 3000
 #define SERVER_PROTO "http"
-#define SERVER_TCP_PORT 3001
+#define SERVER_TCP_PORT 6809
 
 /* Network Configuration */
 #define DEVICE_SPEC_SIZE 256
