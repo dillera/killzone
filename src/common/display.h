@@ -43,6 +43,7 @@ void display_show_quit_confirmation(void);
 void display_show_connection_lost(void);
 void display_show_death_message(void);
 void display_show_error(const char *error);
+void display_toggle_color_scheme(void);
 
 /* Direct drawing */
 

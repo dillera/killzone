@@ -305,6 +305,10 @@ void handle_state_playing(void) {
             /* Trigger full screen redraw */
             force_screen_refresh = 1;
             return;
+        case CMD_COLOR:
+            /* change color */
+            display_toggle_color_scheme();
+            break;
         case CMD_QUIT:
             /* Show quit confirmation dialog */
             display_show_quit_confirmation();
@@ -327,52 +331,63 @@ void handle_state_playing(void) {
         default:
             break;
     }
-        
-        /* Send movement command if valid */
-        if (direction) {
-            if (!kz_network_move_player(player->id, direction, &move_res)) {
-                /* If move failed (e.g. network error) */
-                if (!state_is_connected()) {
-                    /* Show disconnection dialog */
-                    display_show_connection_lost();
-                    
-                    /* Wait for confirmation */
-                    c = input_wait_key();
-                    if (c == 'y' || c == 'Y') {
-                        /* Really quit - go to init */
-                        state_clear_local_player();
-                        state_set_rejoining(0);
-                        state_set_connected(0);
-                        state_set_current(STATE_INIT);
-                    } else if (c == 'n' || c == 'N') {
-                        /* Rejoin with saved name */
-                        state_set_rejoining(1);
-                        state_set_connected(0);
-                        state_clear_other_players();
-                        state_set_current(STATE_JOINING);
-                    }
-                    return;
+
+    /* Send movement command if valid */
+    if (direction)
+    {
+        if (!kz_network_move_player(player->id, direction, &move_res))
+        {
+            /* If move failed (e.g. network error) */
+            if (!state_is_connected())
+            {
+                /* Show disconnection dialog */
+                display_show_connection_lost();
+
+                /* Wait for confirmation */
+                c = input_wait_key();
+                if (c == 'y' || c == 'Y')
+                {
+                    /* Really quit - go to init */
+                    state_clear_local_player();
+                    state_set_rejoining(0);
+                    state_set_connected(0);
+                    state_set_current(STATE_INIT);
                 }
-            } else {
-                /* Update local player position from response */
-                player->x = move_res.x;
-                player->y = move_res.y;
-                
-                /* Check if combat occurred - message is auto-displayed via state */
-                if (move_res.collision) {
-                    /* Message already stored in state by network code */
-                    /* No blocking delay - continues gameplay */
-                    
-                    /* Check if we lost */
-                    if (move_res.loser_id[0] != '\0') {
-                        /* If we are the loser, transition to dead state */
-                        if (strcmp(move_res.loser_id, player->id) == 0) {
-                            state_set_current(STATE_DEAD);
-                        }
+                else if (c == 'n' || c == 'N')
+                {
+                    /* Rejoin with saved name */
+                    state_set_rejoining(1);
+                    state_set_connected(0);
+                    state_clear_other_players();
+                    state_set_current(STATE_JOINING);
+                }
+                return;
+            }
+        }
+        else
+        {
+            /* Update local player position from response */
+            player->x = move_res.x;
+            player->y = move_res.y;
+
+            /* Check if combat occurred - message is auto-displayed via state */
+            if (move_res.collision)
+            {
+                /* Message already stored in state by network code */
+                /* No blocking delay - continues gameplay */
+
+                /* Check if we lost */
+                if (move_res.loser_id[0] != '\0')
+                {
+                    /* If we are the loser, transition to dead state */
+                    if (strcmp(move_res.loser_id, player->id) == 0)
+                    {
+                        state_set_current(STATE_DEAD);
                     }
                 }
             }
         }
+    }
 }
 
 /**

@@ -15,8 +15,6 @@ BOOL usecursor = FALSE;
 
 void hirestxt_init(void)
 {
-  byte colorset = 0x01;
-
   initCoCoSupport();
   closed = FALSE;
   usecursor = FALSE;

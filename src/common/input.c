@@ -54,6 +54,10 @@ input_cmd_t input_check(void) {
         case 'h':  /* vi-style left */
         case KEY_LEFT_ARROW:
             return CMD_LEFT;
+
+        case 'c':
+        case 'C':
+            return CMD_COLOR;
             
         case 'd':
         case 'D':

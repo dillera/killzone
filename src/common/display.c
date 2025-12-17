@@ -331,3 +331,10 @@ void display_show_error(const char *error) {
     gotoxy(0, 10);
     printf("ERROR: %s\n", error);
 }
+
+void display_toggle_color_scheme(void) {
+#ifdef _CMOC_VERSION_
+    switch_colorset();
+#endif
+}
+
