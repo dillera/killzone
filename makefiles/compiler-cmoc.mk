@@ -17,7 +17,7 @@ CFLAGS += -I $(SRCDIR)/include
 
 CFLAGS += -Wno-const
 
-LIMITFLAGS := --org=0E00 --limit=7C00
+#LIMITFLAGS := --org=0E00 --limit=7C00
 
 LDFLAGS += $(foreach lib, $(LIBS), -L $(dir $(lib)))
 

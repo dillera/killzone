@@ -57,7 +57,6 @@ static void tcp_disconnect(void) {
         tcp_connected = 0;
     }
 }
-
 /* --- Existing Functions Modified --- */
 
 static void build_device_spec(const char *path) {
@@ -90,7 +89,6 @@ uint8_t kz_network_health_check(void) {
         return tcp_connect();
     }
     
-    /* Fallback to HTTP (omitted/disabled for now as per request to avoid JSON) */
     return 0;
 }
 
@@ -246,8 +244,8 @@ uint8_t kz_network_get_world_state(void) {
         if (len < 5 || buf[0] != 0x03) return 0;
         
         count = buf[1];
-        {
-            uint16_t ticks = buf[2] | (buf[3] << 8);
+        {         
+            uint16_t ticks = (uint16_t)buf[2] | ((uint16_t)buf[3] << 8);
             state_set_world_ticks(ticks);
         }
         

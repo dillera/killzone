@@ -31,11 +31,6 @@
 #undef isprint
 #undef kbhit
 #undef cgetc
-#undef clrscr
-
-#define clrscr my_clrscr
-
-void my_clrscr(void);
 
 unsigned char wherex(void);
 unsigned char wherey(void);

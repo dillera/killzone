@@ -8,7 +8,6 @@
  * on coco
  *
  */
-#define SCREEN_BUFFER (byte*) 0x6600 // PMODE graphics buffer address
 
 byte colorset = 1;
 BOOL closed = FALSE;
@@ -16,42 +15,33 @@ BOOL usecursor = FALSE;
 
 void hirestxt_init(void)
 {
-
   initCoCoSupport();
   closed = FALSE;
+  usecursor = FALSE;
 
-  if (isCoCo3)
-  {
-    width(40);
-  }
-  else
-  {
-    // Define a `HiResTextScreenInit` object:
-    struct HiResTextScreenInit init =
-        {
-            42,                 /* characters per row */
-            writeCharAt_42cols, /* must be consistent with previous field */
-            SCREEN_BUFFER,      /* pointer to text screen buffer */
-            TRUE,               /* redirects printf() to the 42x24 text screen */
-            (word *)0x112,      /* pointer to a 60 Hz async counter (Color Basic's TIMER) */
-            0,                  /* default cursor blinking rate */
-            NULL,               /* use inkey(), i.e., Color Basic's INKEY$ */
-            NULL,               /* no sound on '\a' */
-        };
+  // Define a `HiResTextScreenInit` object:
+  struct HiResTextScreenInit init =
+      {
+          42,                 /* characters per row */
+          writeCharAt_42cols, /* must be consistent with previous field */
+          (byte *)*(byte *)0x00BC << 8,
+          TRUE,          /* redirects printf() to the 42x24 text screen */
+          (word *)0x112, /* pointer to a 60 Hz async counter (Color Basic's TIMER) */
+          0,             /* default cursor blinking rate */
+          NULL,          /* use inkey(), i.e., Color Basic's INKEY$ */
+          NULL,          /* no sound on '\a' */
+      };
 
-    initCoCoSupport();
-    rgb();
-    width(32);                               /* PMODE graphics will only appear from 32x16 (does nothing on CoCo 1&2) */
-    pmode(4, (byte *)init.textScreenBuffer); /* hires text mode */
-    pcls(255);
-    screen(1, colorset);
-    initHiResTextScreen(&init);
-  }
+  width(32);                               /* PMODE graphics will only appear from 32x16 (does nothing on CoCo 1&2) */
+  pmode(4, (byte *)init.textScreenBuffer); /* hires text mode */
+  pcls(255);
+  screen(1, colorset);
+  initHiResTextScreen(&init);
 }
 
 void hirestxt_close(void)
 {
-  if (!isCoCo3  && !closed)
+  if (!closed)
   {
     closed = TRUE;  
 	  closeHiResTextScreen();
@@ -77,33 +67,12 @@ void switch_colorset(void)
 
 void gotoxy(byte x, byte y)
 {
-  if (isCoCo3)
-  {
-    // CoCo 3 text mode
-    locate(x,y);
-  }
-  else
-  {
     moveCursor(x, y);
-  }
-}
-
-void my_clrscr(void)
-{
-  if (isCoCo3)
-  {
-    cls(0);
-  }
-  else
-  {
-    clear();
-    home();
-  }
 }
 
 unsigned char wherex(void)
 {
-  if (isCoCo3)
+  if (false)
   {
     return 0;
   }
@@ -115,7 +84,7 @@ unsigned char wherex(void)
 
 unsigned char wherey(void)
 {
-  if (isCoCo3)
+  if (false)
   {
     return 0;
   }
@@ -129,7 +98,7 @@ unsigned char cursor(unsigned char onoff)
 {
   usecursor = onoff;
 
-  if (!isCoCo3)
+  if (!false)
   {
     if (onoff)
     {
@@ -198,10 +167,8 @@ void get_line(char *buf, uint8_t max_len)
   do
   {
     gotox(i + init_x);
-    if (!isCoCo3)
-    {
-      cursor(1);
-    }
+
+    cursor(1);
 
     c = cgetc();
 

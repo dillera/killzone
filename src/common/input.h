@@ -24,7 +24,8 @@ typedef enum {
     CMD_QUIT,
     CMD_YES,
     CMD_NO,
-    CMD_ATTACK
+    CMD_ATTACK,
+    CMD_COLOR
 } input_cmd_t;
 
 /**

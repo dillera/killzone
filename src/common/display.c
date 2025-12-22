@@ -24,6 +24,9 @@
  * Initialize display system
  */
 void display_init(void) {
+#ifdef _CMOC_VERSION_
+    hirestxt_init();    
+#endif
     clrscr();  /* Clear screen using conio */
 }
 
@@ -32,6 +35,9 @@ void display_init(void) {
  */
 void display_close(void) {
     clrscr();
+#ifdef _CMOC_VERSION_
+    hirestxt_close();
+#endif
 }
 
 /**
@@ -53,9 +59,8 @@ void display_show_welcome(const char *server_name) {
     gotoxy(0, 9);
     
     /* Build full URL */
-    snprintf(url_buf, sizeof(url_buf), "  %s://%s:%d", 
-             SERVER_PROTO, SERVER_HOST, SERVER_PORT);
-
+    snprintf(url_buf, sizeof(tcp_device_spec), "N:TCP://%s:%d", SERVER_HOST, SERVER_TCP_PORT);
+    
     printf("%s\n", url_buf);
     
     gotoxy(0, 11);
@@ -99,14 +104,7 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     /* Version display at far right: C1.1.0|S1.1.0 */
     server_ver = state_get_server_version();
     snprintf(ver_buf, sizeof(ver_buf), "C%s|S%s", CLIENT_VERSION, server_ver);
-    cputsxy(40 - strlen(ver_buf), 23, ver_buf);
-}
-
-/**
- * Draw command help line
- */
-void display_draw_command_help(void) {
-    printf("WASD/Arrows=Move | Q=Quit | A=Attack\n");
+    cputsxy((byte)(40 - strlen(ver_buf)), 23, ver_buf);
 }
 
 /**
@@ -272,6 +270,11 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
             }
         }
     }
+
+#ifdef _CMOC_VERSION_
+    gotoxy(DISPLAY_WIDTH -1 , 23); /* Move cursor out of the way */
+#endif
+
 }
 
 /* Dialogs and Prompts */
@@ -328,3 +331,10 @@ void display_show_error(const char *error) {
     gotoxy(0, 10);
     printf("ERROR: %s\n", error);
 }
+
+void display_toggle_color_scheme(void) {
+#ifdef _CMOC_VERSION_
+    switch_colorset();
+#endif
+}
+

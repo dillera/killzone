@@ -12,6 +12,8 @@
 #include <stdio.h>
 #endif
 
+#include "keydefs.h"
+
 /**
  * Initialize input system
  */
@@ -26,9 +28,11 @@ void input_init(void) {
 input_cmd_t input_check(void) {
     int c;
     
+#ifndef _CMOC_VERSION_    
     if (!kbhit()) {
         return CMD_NONE;
     }
+#endif
     
     c = cgetc();
     
@@ -36,25 +40,29 @@ input_cmd_t input_check(void) {
         case 'w':
         case 'W':
         case 'k':  /* vi-style up */
-        case 28:   /* Atari up arrow */
+        case KEY_UP_ARROW:   
             return CMD_UP;
             
         case 's':
         case 'S':
         case 'j':  /* vi-style down */
-        case 29:   /* Atari down arrow */
+        case KEY_DOWN_ARROW:
             return CMD_DOWN;
             
         case 'a':
         case 'A':
         case 'h':  /* vi-style left */
-        case 30:   /* Atari left arrow */
+        case KEY_LEFT_ARROW:
             return CMD_LEFT;
+
+        case 'c':
+        case 'C':
+            return CMD_COLOR;
             
         case 'd':
         case 'D':
         case 'l':  /* vi-style right */
-        case 31:   /* Atari right arrow */
+        case KEY_RIGHT_ARROW:   /* Atari right arrow */
             return CMD_RIGHT;
             
         case 'r':
@@ -87,5 +95,9 @@ input_cmd_t input_check(void) {
  * Wait for a specific key press (blocking)
  */
 char input_wait_key(void) {
+#ifdef _CMOC_VERSION_
+    return waitkey(0);
+#else
     return cgetc();
+#endif
 }
