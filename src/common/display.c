@@ -59,7 +59,7 @@ void display_show_welcome(const char *server_name) {
     gotoxy(0, 9);
     
     /* Build full URL */
-    snprintf(url_buf, sizeof(tcp_device_spec), "N:TCP://%s:%d", SERVER_HOST, SERVER_TCP_PORT);
+    snprintf(url_buf, sizeof(url_buf), "N:TCP://%s:%d", SERVER_HOST, SERVER_TCP_PORT);
     
     printf("%s\n", url_buf);
     
@@ -104,7 +104,7 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     /* Version display at far right: C1.1.0|S1.1.0 */
     server_ver = state_get_server_version();
     snprintf(ver_buf, sizeof(ver_buf), "C%s|S%s", CLIENT_VERSION, server_ver);
-    cputsxy((byte)(40 - strlen(ver_buf)), 23, ver_buf);
+    cputsxy((uint8_t)(40 - strlen(ver_buf)), 23, ver_buf);
 }
 
 /**
