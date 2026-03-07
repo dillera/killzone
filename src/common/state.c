@@ -22,7 +22,7 @@ static uint8_t world_height = 20;
 static uint16_t world_ticks = 0;
 char error_message[128];
 static int is_rejoining = 0;
-static int is_connected = 1;  /* Track connection state (1=connected, 0=disconnected) */
+static int is_connected = 0;  /* Track connection state (1=connected, 0=disconnected) */
 
 /**
  * Initialize state system
@@ -35,6 +35,7 @@ void state_init(void) {
     world_width = 40;
     world_height = 20;
     memset(error_message, 0, sizeof(error_message));
+    is_connected = 0;
 }
 
 /**

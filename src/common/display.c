@@ -135,7 +135,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     static uint8_t last_other_count = 255;
     static int world_rendered = 0; /* Moved declaration to top */
     static int positions_initialized = 0;
-    uint8_t x, y, i;
+    uint8_t y, i;
     char entity_char;
     
     /* Initialize position tracking to invalid values on first call */
@@ -160,17 +160,26 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     if (!world_rendered) {
         clrscr();
         /* Draw world line by line - this fills the play area */
+#ifdef __APPLE2__
+        {
+            static const char empty_row[] = "........................................";
+            for (y = 0; y < DISPLAY_HEIGHT; y++) {
+                cputsxy(0, y, empty_row);
+            }
+        }
+#else
+        uint8_t x;
         for (y = 0; y < DISPLAY_HEIGHT; y++) {
             gotoxy(0, y);
             for (x = 0; x < DISPLAY_WIDTH; x++) {
-                printf("%c", CHAR_EMPTY);
+                cputc(CHAR_EMPTY);
             }
         }
+#endif
         
         /* Draw other entities */
         for (i = 0; i < count; i++) {
             if (others[i].x < DISPLAY_WIDTH && others[i].y < DISPLAY_HEIGHT) {
-                gotoxy(others[i].x, others[i].y);
                 if (strcmp(others[i].type, "player") == 0) {
                     entity_char = CHAR_WALL;
                 } else if (others[i].isHunter) {
@@ -178,14 +187,13 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
                 } else {
                     entity_char = CHAR_ENEMY;
                 }
-                printf("%c", entity_char);
+                cputcxy(others[i].x, others[i].y, entity_char);
             }
         }
         
         /* Draw local player */
         if (local->x < DISPLAY_WIDTH && local->y < DISPLAY_HEIGHT) {
-            gotoxy(local->x, local->y);
-            printf("%c", CHAR_PLAYER);
+            cputcxy(local->x, local->y, CHAR_PLAYER);
         }
         
         last_player_x = local->x;
@@ -213,8 +221,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
                 uint8_t old_x = last_other_positions[i * 2];
                 uint8_t old_y = last_other_positions[i * 2 + 1];
                 if (old_x < DISPLAY_WIDTH && old_y < DISPLAY_HEIGHT) {
-                    gotoxy(old_x, old_y);
-                    printf("%c", CHAR_EMPTY);
+                    cputcxy(old_x, old_y, CHAR_EMPTY);
                 }
                 last_other_positions[i * 2] = 255;
                 last_other_positions[i * 2 + 1] = 255;
@@ -225,12 +232,10 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
         /* Update player position if changed */
         if (local->x != last_player_x || local->y != last_player_y) {
             /* Erase old player position */
-            gotoxy(last_player_x, last_player_y);
-            printf("%c", CHAR_EMPTY);
+            cputcxy(last_player_x, last_player_y, CHAR_EMPTY);
             
             /* Draw new player position */
-            gotoxy(local->x, local->y);
-            printf("%c", CHAR_PLAYER);
+            cputcxy(local->x, local->y, CHAR_PLAYER);
             
             last_player_x = local->x;
             last_player_y = local->y;
@@ -247,13 +252,11 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
             if (old_x != new_x_other || old_y != new_y_other) {
                 /* Erase old position (if valid) */
                 if (old_x < DISPLAY_WIDTH && old_y < DISPLAY_HEIGHT) {
-                    gotoxy(old_x, old_y);
-                    printf("%c", CHAR_EMPTY);
+                    cputcxy(old_x, old_y, CHAR_EMPTY);
                 }
                 
                 /* Draw new position */
                 if (new_x_other < DISPLAY_WIDTH && new_y_other < DISPLAY_HEIGHT) {
-                    gotoxy(new_x_other, new_y_other);
                     if (strcmp(others[i].type, "player") == 0) {
                         entity_char = CHAR_WALL;
                     } else if (others[i].isHunter) {
@@ -261,7 +264,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
                     } else {
                         entity_char = CHAR_ENEMY;
                     }
-                    printf("%c", entity_char);
+                    cputcxy(new_x_other, new_y_other, entity_char);
                 }
                 
                 /* Update tracked position */
@@ -337,4 +340,3 @@ void display_toggle_color_scheme(void) {
     switch_colorset();
 #endif
 }
-

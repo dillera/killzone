@@ -14,6 +14,14 @@
 
 #include "keydefs.h"
 
+static int normalize_key(int c) {
+#ifdef __APPLE2__
+    /* Apple II keyboard commonly sets high bit on keycodes. */
+    c &= 0x7F;
+#endif
+    return c;
+}
+
 /**
  * Initialize input system
  */
@@ -34,7 +42,7 @@ input_cmd_t input_check(void) {
     }
 #endif
     
-    c = cgetc();
+    c = normalize_key(cgetc());
     
     switch (c) {
         case 'w':
