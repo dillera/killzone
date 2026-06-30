@@ -36,6 +36,17 @@ static char tcp_device_spec[64];
 static uint8_t tcp_connected = 0;
 
 /* --- TCP Helper Functions --- */
+static void mark_connected(void) {
+    tcp_connected = 1;
+    current_status = NET_CONNECTED;
+    state_set_connected(1);
+}
+
+static void mark_disconnected(void) {
+    tcp_connected = 0;
+    current_status = NET_DISCONNECTED;
+    state_set_connected(0);
+}
 
 static uint8_t tcp_connect(void) {
     uint8_t err;
@@ -45,17 +56,18 @@ static uint8_t tcp_connect(void) {
     err = network_open(tcp_device_spec, 0x0C, 0); /* 0x0C = Read/Write? Check docs. Usually 12 for RW */
     if (err != FN_ERR_OK) {
         printf("TCP Connect Failed: %d\n", err);
+        mark_disconnected();
         return 0;
     }
-    tcp_connected = 1;
+    mark_connected();
     return 1;
 }
 
 static void tcp_disconnect(void) {
     if (tcp_connected) {
         network_close(tcp_device_spec);
-        tcp_connected = 0;
     }
+    mark_disconnected();
 }
 /* --- Existing Functions Modified --- */
 
@@ -67,14 +79,13 @@ static void build_device_spec(const char *path) {
 
 uint8_t kz_network_init(void) {
     printf("Network init...\n");
-    /* If we are using TCP, we might want to establish connection later or check availability */
-    current_status = NET_CONNECTED;
+    current_status = NET_CONNECTING;
+    state_set_connected(0);
     return 0;
 }
 
 uint8_t kz_network_close(void) {
     tcp_disconnect();
-    current_status = NET_DISCONNECTED;
     return 0;
 }
 
@@ -85,10 +96,14 @@ network_status_t kz_network_get_status(void) {
 uint8_t kz_network_health_check(void) {
     if (USE_TCP) {
         /* Simple TCP connect check */
-        if (tcp_connected) return 1;
+        if (tcp_connected) {
+            mark_connected();
+            return 1;
+        }
         return tcp_connect();
     }
     
+    mark_disconnected();
     return 0;
 }
 
@@ -98,35 +113,61 @@ static uint8_t kz_network_join_player_tcp(const char *name, player_state_t *play
     static uint8_t buf[256];
     int len;
     int idLen;
+    size_t maxNameLen;
     
     if (!tcp_connected) {
-        if (!tcp_connect()) return 0;
+        if (!tcp_connect()) {
+            mark_disconnected();
+            return 0;
+        }
     }
     
     /* Packet: 0x01 [NameLen] [Name] */
     len = strlen(name);
+    maxNameLen = sizeof(buf) - 2;
+    if (len <= 0 || (size_t)len > maxNameLen) {
+        mark_disconnected();
+        return 0;
+    }
     buf[0] = 0x01;
     buf[1] = (uint8_t)len;
     memcpy(&buf[2], name, len);
     
-    if (network_write(tcp_device_spec, buf, 2 + len) != FN_ERR_OK) return 0;
+    if (network_write(tcp_device_spec, buf, 2 + len) != FN_ERR_OK) {
+        mark_disconnected();
+        return 0;
+    }
     
     /* Read Response: 0x01 [IDLen] [ID] [X] [Y] [Health] */
     /* Read header first */
     len = network_read(tcp_device_spec, buf, 2); 
-    if (len < 2 || buf[0] != 0x01) return 0;
+    if (len < 2 || buf[0] != 0x01) {
+        mark_disconnected();
+        return 0;
+    }
     
     idLen = buf[1];
+    if (idLen <= 0 || idLen >= (int)sizeof(player->id) || idLen >= (int)sizeof(buf)) {
+        mark_disconnected();
+        return 0;
+    }
     /* Read ID */
     len = network_read(tcp_device_spec, buf, idLen);
-    if (len != idLen) return 0;
+    if (len != idLen) {
+        mark_disconnected();
+        return 0;
+    }
     memcpy(player->id, buf, idLen);
     player->id[idLen] = '\0';
-    strncpy(player->name, name, sizeof(player->name));
+    strncpy(player->name, name, sizeof(player->name) - 1);
+    player->name[sizeof(player->name) - 1] = '\0';
     
     /* Read data: X, Y, Health */
     len = network_read(tcp_device_spec, buf, 3);
-    if (len != 3) return 0;
+    if (len != 3) {
+        mark_disconnected();
+        return 0;
+    }
     
     player->x = buf[0];
     player->y = buf[1];
@@ -136,10 +177,17 @@ static uint8_t kz_network_join_player_tcp(const char *name, player_state_t *play
     len = network_read(tcp_device_spec, buf, 1);
     if (len == 1 && buf[0] > 0 && buf[0] < 16) {
         int verLen = buf[0];
+        if (verLen >= (int)sizeof(buf)) {
+            mark_disconnected();
+            return 0;
+        }
         len = network_read(tcp_device_spec, buf, verLen);
         if (len == verLen) {
             buf[verLen] = '\0';
             state_set_server_version((char*)buf);
+        } else {
+            mark_disconnected();
+            return 0;
         }
     }
     
@@ -148,6 +196,7 @@ static uint8_t kz_network_join_player_tcp(const char *name, player_state_t *play
     player->isHunter = 0;
     
     state_set_local_player(player);
+    mark_connected();
     return 1;
 }
 
@@ -158,7 +207,7 @@ uint8_t kz_network_join_player(const char *name, player_state_t *player) {
 
 /* TCP Move Implementation */
 static uint8_t kz_network_move_player_tcp(const char *player_id, const char *direction, move_result_t *result) {
-    uint8_t buf[16];
+    uint8_t buf[64];
     int len;
     const player_state_t *local;
     char dirChar = 'x';
@@ -167,17 +216,31 @@ static uint8_t kz_network_move_player_tcp(const char *player_id, const char *dir
     if (strcmp(direction, "left") == 0) dirChar = 'l';
     if (strcmp(direction, "right") == 0) dirChar = 'r';
     
-    if (!tcp_connected) return 0;
+    if (!tcp_connected || !result) {
+        mark_disconnected();
+        return 0;
+    }
+
+    result->collision = 0;
+    result->message_count = 0;
+    result->messages[0][0] = '\0';
+    result->loser_id[0] = '\0';
     
     /* Packet: 0x02 [DirChar] */
     buf[0] = 0x02;
     buf[1] = (uint8_t)dirChar;
     
-    if (network_write(tcp_device_spec, buf, 2) != FN_ERR_OK) return 0;
+    if (network_write(tcp_device_spec, buf, 2) != FN_ERR_OK) {
+        mark_disconnected();
+        return 0;
+    }
     
-    /* Resp: 0x02 [X] [Y] [Health] [Collision] [MsgLen] [Msg...] */
+    /* Resp: 0x02 [X] [Y] [Health] [Collision] [MsgLen] [Msg...] [LoserIdLen] [LoserId...] */
     len = network_read(tcp_device_spec, buf, 6);
-    if (len < 6 || buf[0] != 0x02) return 0;
+    if (len < 6 || buf[0] != 0x02) {
+        mark_disconnected();
+        return 0;
+    }
     
     result->x = buf[1];
     result->y = buf[2];
@@ -190,23 +253,57 @@ static uint8_t kz_network_move_player_tcp(const char *player_id, const char *dir
     }
     
     result->collision = buf[4];
-    result->message_count = 0;
     
     /* Read battle message if present */
     {
         uint8_t msgLen = buf[5];
-        if (msgLen > 0 && msgLen < 40) {
+        if (msgLen > 0) {
+            if (msgLen >= sizeof(buf)) {
+                mark_disconnected();
+                return 0;
+            }
             len = network_read(tcp_device_spec, buf, msgLen);
             if (len == msgLen) {
-                memcpy(result->messages[0], buf, msgLen);
-                result->messages[0][msgLen] = '\0';
-                result->message_count = 1;
-                /* Store in state for non-blocking display */
-                state_set_combat_message(result->messages[0]);
+                uint8_t copyLen = msgLen;
+                if (copyLen > 40) copyLen = 40;
+                memcpy(result->messages[0], buf, copyLen);
+                result->messages[0][copyLen] = '\0';
+                if (copyLen > 0) {
+                    result->message_count = 1;
+                    /* Store in state for non-blocking display */
+                    state_set_combat_message(result->messages[0]);
+                }
+            } else {
+                mark_disconnected();
+                return 0;
             }
         }
     }
+
+    /* Read loser ID for death handling (optional for backward compatibility) */
+    len = network_read(tcp_device_spec, buf, 1);
+    if (len == 1) {
+        uint8_t loserLen = buf[0];
+        if (loserLen > 0) {
+            if (loserLen >= sizeof(buf)) {
+                mark_disconnected();
+                return 0;
+            }
+            len = network_read(tcp_device_spec, buf, loserLen);
+            if (len != loserLen) {
+                mark_disconnected();
+                return 0;
+            }
+            if (loserLen >= sizeof(result->loser_id)) loserLen = sizeof(result->loser_id) - 1;
+            memcpy(result->loser_id, buf, loserLen);
+            result->loser_id[loserLen] = '\0';
+        }
+    } else {
+        mark_disconnected();
+        return 0;
+    }
     
+    mark_connected();
     return 1;
 }
 
@@ -234,14 +331,23 @@ uint8_t kz_network_get_world_state(void) {
         const player_state_t *local;
         uint8_t msgLen;
 
-        if (!tcp_connected) return 0;
+        if (!tcp_connected) {
+            mark_disconnected();
+            return 0;
+        }
         
         buf[0] = 0x03;
-        if (network_write(tcp_device_spec, buf, 1) != FN_ERR_OK) return 0;
+        if (network_write(tcp_device_spec, buf, 1) != FN_ERR_OK) {
+            mark_disconnected();
+            return 0;
+        }
         
         /* Resp: 0x03 [Count] [TicksLow] [TicksHigh] [MsgLen] [Msg...] [Entities...] */
         len = network_read(tcp_device_spec, buf, 5);
-        if (len < 5 || buf[0] != 0x03) return 0;
+        if (len < 5 || buf[0] != 0x03) {
+            mark_disconnected();
+            return 0;
+        }
         
         count = buf[1];
         {         
@@ -255,7 +361,13 @@ uint8_t kz_network_get_world_state(void) {
             if (len == msgLen) {
                 buf[msgLen] = '\0';
                 state_set_combat_message((char*)buf);
+            } else {
+                mark_disconnected();
+                return 0;
             }
+        } else if (msgLen >= 40) {
+            mark_disconnected();
+            return 0;
         }
         
         local = state_get_local_player();
@@ -263,7 +375,10 @@ uint8_t kz_network_get_world_state(void) {
         for (i = 0; i < count; i++) {
             /* Read 3 bytes: Type, X, Y */
             len = network_read(tcp_device_spec, buf, 3);
-            if (len < 3) break;
+            if (len < 3) {
+                mark_disconnected();
+                return 0;
+            }
             
             typeChar = (char)buf[0];
             x = buf[1];
@@ -296,8 +411,10 @@ uint8_t kz_network_get_world_state(void) {
         }
         
         state_set_other_players(other_players, actual_count);
+        mark_connected();
         return 1;
     }
+    mark_disconnected();
     return 0;
 }
 

@@ -96,6 +96,7 @@ endif
 
 .SUFFIXES:
 .PHONY: all clean release $(DISK_TASKS) $(BUILD_TASKS) $(PROGRAM_TGT) $(ALL_TASKS)
+.DEFAULT_GOAL := all
 
 all: $(ALL_TASKS) $(PROGRAM_TGT)
 

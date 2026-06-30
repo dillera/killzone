@@ -25,6 +25,7 @@ class TcpServer {
         this.clients.add(socket);
 
         socket.player = null; // Associated player object
+        socket.rxBuffer = Buffer.alloc(0); // TCP stream reassembly buffer
 
         socket.on('data', (data) => this.handleData(socket, data));
         socket.on('close', () => this.handleClose(socket));
@@ -32,25 +33,89 @@ class TcpServer {
     }
 
     handleData(socket, data) {
-        const packetType = data[0];
-
-        try {
-            switch (packetType) {
-                case 0x01: // Join
-                    this.handleJoin(socket, data.slice(1));
-                    break;
-                case 0x02: // Move
-                    this.handleMove(socket, data.slice(1));
-                    break;
-                case 0x03: // Get State
-                    this.handleGetState(socket);
-                    break;
-                default:
-                    console.log(`Unknown packet type: ${packetType}`);
-            }
-        } catch (e) {
-            console.error(`Error handling TCP data: ${e.message}`);
+        if (!data || data.length === 0) {
+            return;
         }
+
+        socket.rxBuffer = Buffer.concat([socket.rxBuffer, data]);
+
+        while (socket.rxBuffer.length > 0) {
+            const packetType = socket.rxBuffer[0];
+            let packetLen = 0;
+
+            // Packet formats:
+            // 0x01 [NameLen] [Name...]
+            // 0x02 [DirChar]
+            // 0x03
+            if (packetType === 0x01) {
+                if (socket.rxBuffer.length < 2) {
+                    return;
+                }
+                // Protocol guardrails: 1..31 byte names only.
+                if (socket.rxBuffer[1] === 0 || socket.rxBuffer[1] > 31) {
+                    console.log(`Invalid join name length: ${socket.rxBuffer[1]}`);
+                    socket.destroy();
+                    return;
+                }
+                packetLen = 2 + socket.rxBuffer[1];
+            } else if (packetType === 0x02) {
+                packetLen = 2;
+            } else if (packetType === 0x03) {
+                packetLen = 1;
+            } else {
+                console.log(`Unknown packet type: ${packetType}`);
+                socket.rxBuffer = socket.rxBuffer.slice(1);
+                continue;
+            }
+
+            if (socket.rxBuffer.length < packetLen) {
+                return;
+            }
+
+            const packet = socket.rxBuffer.slice(0, packetLen);
+            socket.rxBuffer = socket.rxBuffer.slice(packetLen);
+
+            try {
+                switch (packetType) {
+                    case 0x01: // Join
+                        this.handleJoin(socket, packet.slice(1));
+                        break;
+                    case 0x02: // Move
+                        this.handleMove(socket, packet.slice(1));
+                        break;
+                    case 0x03: // Get State
+                        this.handleGetState(socket);
+                        break;
+                    default:
+                        break;
+                }
+            } catch (e) {
+                console.error(`Error handling TCP data: ${e.message}`);
+            }
+        }
+    }
+
+    sendMoveResponse(socket, player, hadCollision, battleMsg, loserId = '') {
+        const safeMsg = (battleMsg || '').substring(0, 39);
+        const safeLoserId = (loserId || '').substring(0, 31);
+        const msgBuf = Buffer.from(safeMsg);
+        const loserBuf = Buffer.from(safeLoserId);
+
+        // 0x02 [X] [Y] [Health] [Collision] [MsgLen] [Msg...] [LoserIdLen] [LoserId...]
+        const resp = Buffer.alloc(6 + msgBuf.length + 1 + loserBuf.length);
+        let offset = 0;
+        resp.writeUInt8(0x02, offset++);
+        resp.writeUInt8(Math.floor(player.x), offset++);
+        resp.writeUInt8(Math.floor(player.y), offset++);
+        resp.writeUInt8(player.health, offset++);
+        resp.writeUInt8(hadCollision ? 1 : 0, offset++);
+        resp.writeUInt8(msgBuf.length, offset++);
+        msgBuf.copy(resp, offset);
+        offset += msgBuf.length;
+        resp.writeUInt8(loserBuf.length, offset++);
+        loserBuf.copy(resp, offset);
+
+        socket.write(resp);
     }
 
     handleJoin(socket, data) {
@@ -124,6 +189,7 @@ class TcpServer {
         if (!socket.player) return;
         if (data.length < 1) return;
 
+        const activePlayer = socket.player;
         const dirChar = String.fromCharCode(data[0]);
         let direction = null; // 'up', 'down', 'left', 'right'
 
@@ -133,79 +199,78 @@ class TcpServer {
         if (dirChar === 'l') direction = 'left';
         if (dirChar === 'r') direction = 'right';
 
-        if (direction) {
-            this.world.updatePlayerActivity(socket.player.id);
+        if (!direction) {
+            // Keep protocol in sync even for malformed packets.
+            this.sendMoveResponse(socket, activePlayer, false, '', '');
+            return;
+        }
 
-            let newX = socket.player.x;
-            let newY = socket.player.y;
+        this.world.updatePlayerActivity(activePlayer.id);
 
-            switch (direction) {
-                case 'up': newY = Math.max(0, newY - 1); break;
-                case 'down': newY = Math.min(this.world.height - 1, newY + 1); break;
-                case 'left': newX = Math.max(0, newX - 1); break;
-                case 'right': newX = Math.min(this.world.width - 1, newX + 1); break;
-            }
+        let newX = activePlayer.x;
+        let newY = activePlayer.y;
+        let hadCollision = false;
+        let battleMsg = '';
+        let loserId = '';
 
-            if (!this.world.isValidPosition(newX, newY)) {
-                // Out of bounds, ignore
-                // Send current pos back to sync
+        switch (direction) {
+            case 'up': newY = Math.max(0, newY - 1); break;
+            case 'down': newY = Math.min(this.world.height - 1, newY + 1); break;
+            case 'left': newX = Math.max(0, newX - 1); break;
+            case 'right': newX = Math.min(this.world.width - 1, newX + 1); break;
+            default:
+                break;
+        }
+
+        if (!this.world.isValidPosition(newX, newY)) {
+            this.sendMoveResponse(socket, activePlayer, false, '', '');
+            return;
+        }
+
+        // Check collisions
+        const collidingPlayer = this.world.getPlayerAtPosition(newX, newY, activePlayer.id);
+        const collidingMob = this.world.getMobAtPosition(newX, newY);
+
+        if (collidingPlayer) {
+            hadCollision = true;
+            const result = CombatResolver.resolveBattle(activePlayer, collidingPlayer);
+            console.log(`  ⚔️  TCP Combat: "${activePlayer.name}" vs "${collidingPlayer.name}" - Winner: "${result.finalWinnerName}"`);
+            battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
+            loserId = result.finalLoserId || '';
+            if (result.finalLoserId === activePlayer.id) {
+                this.world.removePlayer(activePlayer.id);
+                this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
             } else {
-                // Check collisions
-                const collidingPlayer = this.world.getPlayerAtPosition(newX, newY, socket.player.id);
-                const collidingMob = this.world.getMobAtPosition(newX, newY);
-                let hadCollision = false;
-                let battleMsg = '';
-
-                if (collidingPlayer) {
-                    hadCollision = true;
-                    const result = CombatResolver.resolveBattle(socket.player, collidingPlayer);
-                    console.log(`  ⚔️  TCP Combat: "${socket.player.name}" vs "${collidingPlayer.name}" - Winner: "${result.finalWinnerName}"`);
-                    battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
-                    if (result.finalLoserId === socket.player.id) {
-                        this.world.removePlayer(socket.player.id);
-                        this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
-                    } else {
-                        this.world.removePlayer(collidingPlayer.id);
-                        this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
-                    }
-                    this.world.setLastCombat(result);
-                    // We don't move if we fought
-                } else if (collidingMob) {
-                    hadCollision = true;
-                    const result = CombatResolver.resolveBattle(socket.player, collidingMob);
-                    console.log(`  ⚔️  TCP Combat: "${socket.player.name}" vs "${collidingMob.name}" - Winner: "${result.finalWinnerName}"`);
-                    battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
-                    if (result.finalLoserId === socket.player.id) {
-                        this.world.removePlayer(socket.player.id);
-                        this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
-                    } else {
-                        this.world.removeMob(collidingMob.id);
-                        this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'mob');
-                    }
-                    this.world.setLastCombat(result);
-                } else {
-                    // Move
-                    socket.player.setPosition(newX, newY);
-                    console.log(`  🎮 TCP Move: ${socket.player.name} to (${newX}, ${newY})`);
-                }
-
-                // Truncate message to 39 chars max
-                if (battleMsg.length > 39) {
-                    battleMsg = battleMsg.substring(0, 39);
-                }
-
-                // Send State Update back to client: 0x02 [X] [Y] [Health] [Collision] [MsgLen] [Msg...]
-                const msgBuf = Buffer.from(battleMsg);
-                const resp = Buffer.alloc(6 + msgBuf.length);
-                resp.writeUInt8(0x02, 0); // Type
-                resp.writeUInt8(Math.floor(socket.player.x), 1);
-                resp.writeUInt8(Math.floor(socket.player.y), 2);
-                resp.writeUInt8(socket.player.health, 3);
-                resp.writeUInt8(hadCollision ? 1 : 0, 4); // Collision flag
-                resp.writeUInt8(msgBuf.length, 5);        // Message length
-                msgBuf.copy(resp, 6);
-                socket.write(resp);
+                this.world.removePlayer(collidingPlayer.id);
+                this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
             }
+            this.world.setLastCombat(result);
+            // We don't move if we fought
+        } else if (collidingMob) {
+            hadCollision = true;
+            const result = CombatResolver.resolveBattle(activePlayer, collidingMob);
+            console.log(`  ⚔️  TCP Combat: "${activePlayer.name}" vs "${collidingMob.name}" - Winner: "${result.finalWinnerName}"`);
+            battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
+            loserId = result.finalLoserId || '';
+            if (result.finalLoserId === activePlayer.id) {
+                this.world.removePlayer(activePlayer.id);
+                this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'player');
+            } else {
+                this.world.removeMob(collidingMob.id);
+                this.world.setKillMessage(result.finalWinnerName, result.finalLoserName, 'mob');
+            }
+            this.world.setLastCombat(result);
+        } else {
+            // Move
+            activePlayer.setPosition(newX, newY);
+            console.log(`  🎮 TCP Move: ${activePlayer.name} to (${newX}, ${newY})`);
+        }
+
+        this.sendMoveResponse(socket, activePlayer, hadCollision, battleMsg, loserId);
+
+        // Prevent dead sockets from continuing to move as ghost clients.
+        if (loserId && loserId === activePlayer.id) {
+            socket.player = null;
         }
     }
 

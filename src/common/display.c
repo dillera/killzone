@@ -208,7 +208,8 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     static uint8_t last_other_count = 255;
     static int world_rendered = 0; /* Moved declaration to top */
     static int positions_initialized = 0;
-    uint8_t x, y, i;
+    uint8_t y, i;
+    uint8_t x;
     char entity_char;
     
     /* Initialize position tracking to invalid values on first call */
@@ -234,11 +235,20 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
         clrscr();
         status_needs_redraw = 1;
         /* Draw world line by line - this fills the play area */
+#ifdef __APPLE2__
+        {
+            static const char empty_row[] = "........................................";
+            for (y = 0; y < DISPLAY_HEIGHT; y++) {
+                cputsxy(0, y, empty_row);
+            }
+        }
+#else
         for (y = 0; y < DISPLAY_HEIGHT; y++) {
             for (x = 0; x < DISPLAY_WIDTH; x++) {
                 cputcxy(x, y, CHAR_EMPTY);
             }
         }
+#endif
         
         /* Draw other entities */
         for (i = 0; i < count; i++) {
@@ -303,7 +313,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
             if (last_player_x < DISPLAY_WIDTH && last_player_y < DISPLAY_HEIGHT) {
                 cputcxy(last_player_x, last_player_y, CHAR_EMPTY);
             }
-            
+
             /* Draw new player position */
             if (local->x < DISPLAY_WIDTH && local->y < DISPLAY_HEIGHT) {
                 cputcxy(local->x, local->y, CHAR_PLAYER);
