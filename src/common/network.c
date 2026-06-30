@@ -48,14 +48,15 @@ static void mark_disconnected(void) {
     state_set_connected(0);
 }
 
+static uint8_t last_tcp_err = FN_ERR_OK;
+
 static uint8_t tcp_connect(void) {
     uint8_t err;
     snprintf(tcp_device_spec, sizeof(tcp_device_spec), "N:TCP://%s:%d", SERVER_HOST, SERVER_TCP_PORT);
-    
-    printf("Connecting TCP: %s\n", tcp_device_spec);
+
     err = network_open(tcp_device_spec, 0x0C, 0); /* 0x0C = Read/Write? Check docs. Usually 12 for RW */
+    last_tcp_err = err;
     if (err != FN_ERR_OK) {
-        printf("TCP Connect Failed: %d\n", err);
         mark_disconnected();
         return 0;
     }
@@ -91,6 +92,10 @@ uint8_t kz_network_close(void) {
 
 network_status_t kz_network_get_status(void) {
     return current_status;
+}
+
+uint8_t kz_network_get_last_error(void) {
+    return last_tcp_err;
 }
 
 uint8_t kz_network_health_check(void) {

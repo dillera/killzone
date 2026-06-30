@@ -11,6 +11,9 @@
 #else
 #include <string.h>
 #endif
+#ifdef __ATARI__
+#include "atari_sound.h"
+#endif
 
 /* Global state */
 static client_state_t current_state = STATE_INIT;
@@ -233,11 +236,54 @@ const char *state_get_server_version(void) {
 static char combat_message[41] = "";
 static uint8_t combat_message_frames = 0;
 
+#ifdef __ATARI__
+/* Case-sensitive substring search, written by hand to avoid depending on
+ * the target's libc shipping strstr(). */
+static uint8_t msg_contains(const char *haystack, const char *needle) {
+    size_t hlen = strlen(haystack);
+    size_t nlen = strlen(needle);
+    size_t i, j;
+
+    if (nlen == 0 || nlen > hlen) {
+        return 0;
+    }
+    for (i = 0; i + nlen <= hlen; i++) {
+        for (j = 0; j < nlen && haystack[i + j] == needle[j]; j++) {
+            /* keep scanning */
+        }
+        if (j == nlen) {
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif
+
 /**
  * Set combat message (displays for ~30 frames then clears)
  */
 void state_set_combat_message(const char *msg) {
     if (msg && msg[0] != '\0') {
+#ifdef __ATARI__
+        /* Only play a sound when the server's message content actually
+         * changes. The server keeps re-serving the same lastCombatMessages
+         * on every world-state poll until the next fight, and combat_message
+         * itself gets cleared every 30 ticks for display purposes - comparing
+         * against combat_message here would treat that same stale text as
+         * "new" again after every expiry and replay the sound on a loop.
+         * last_sound_message is never cleared by the display timer, so it
+         * only updates - and only fires a sound - on a genuine new event. */
+        static char last_sound_message[41] = "";
+        if (strcmp(msg, last_sound_message) != 0) {
+            if (msg_contains(msg, "defeats")) {
+                atari_sound_play_kill();
+            } else {
+                atari_sound_play_hit();
+            }
+            strncpy(last_sound_message, msg, sizeof(last_sound_message) - 1);
+            last_sound_message[sizeof(last_sound_message) - 1] = '\0';
+        }
+#endif
         strncpy(combat_message, msg, 40);
         combat_message[40] = '\0';
         combat_message_frames = 30;  /* Show for 30 frames */

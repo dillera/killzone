@@ -9,6 +9,7 @@
 #include "network.h"
 #ifdef __ATARI__
 #include "atari_visuals.h"
+#include "atari_sound.h"
 #endif
 #ifdef _CMOC_VERSION_
 #include <cmoc.h>
@@ -55,6 +56,7 @@ void display_init(void) {
     clrscr();  /* Clear screen using conio */
 #ifdef __ATARI__
     atari_visuals_init();
+    atari_sound_init();
 #endif
 }
 
@@ -63,12 +65,123 @@ void display_init(void) {
  */
 void display_close(void) {
 #ifdef __ATARI__
+    atari_sound_shutdown();
     atari_visuals_shutdown();
 #endif
     clrscr();
 #ifdef _CMOC_VERSION_
     hirestxt_close();
 #endif
+}
+
+/**
+ * 5x5 block-letter font rows for the splash banner.
+ * Only the letters needed to spell KILLZONE are defined.
+ */
+static const char *splash_glyph_row(char letter, uint8_t row) {
+    switch (letter) {
+        case 'K':
+            switch (row) {
+                case 0: return "#...#";
+                case 1: return "#..#.";
+                case 2: return "###..";
+                case 3: return "#..#.";
+                default: return "#...#";
+            }
+        case 'I':
+            switch (row) {
+                case 0: return "#####";
+                case 1: return "..#..";
+                case 2: return "..#..";
+                case 3: return "..#..";
+                default: return "#####";
+            }
+        case 'L':
+            switch (row) {
+                case 0: return "#....";
+                case 1: return "#....";
+                case 2: return "#....";
+                case 3: return "#....";
+                default: return "#####";
+            }
+        case 'Z':
+            switch (row) {
+                case 0: return "#####";
+                case 1: return "...#.";
+                case 2: return "..#..";
+                case 3: return ".#...";
+                default: return "#####";
+            }
+        case 'O':
+            switch (row) {
+                case 0: return ".###.";
+                case 1: return "#...#";
+                case 2: return "#...#";
+                case 3: return "#...#";
+                default: return ".###.";
+            }
+        case 'N':
+            switch (row) {
+                case 0: return "#...#";
+                case 1: return "##..#";
+                case 2: return "#.#.#";
+                case 3: return "#..##";
+                default: return "#...#";
+            }
+        case 'E':
+            switch (row) {
+                case 0: return "#####";
+                case 1: return "#....";
+                case 2: return "###..";
+                case 3: return "#....";
+                default: return "#####";
+            }
+        default:
+            return "     ";
+    }
+}
+
+/**
+ * Show title splash screen: big KILLZONE banner, version, target
+ * server, and a "press any key" prompt. Caller is responsible for
+ * waiting on the keypress; this only draws the screen.
+ */
+void display_show_splash(const char *host, uint16_t port) {
+    static const char word[] = "KILLZONE";
+    static char line_buf[41];
+    static char info_buf[30];
+    uint8_t row, col, letter_idx, glyph_col, x;
+    const char *glyph_row;
+    uint8_t word_len = 8;
+
+    clrscr();
+
+    for (row = 0; row < 5; row++) {
+        x = 0;
+        for (letter_idx = 0; letter_idx < word_len; letter_idx++) {
+            glyph_row = splash_glyph_row(word[letter_idx], row);
+            for (glyph_col = 0; glyph_col < 5; glyph_col++) {
+                line_buf[x] = glyph_row[glyph_col];
+                x++;
+            }
+        }
+        line_buf[x] = '\0';
+        for (col = 0; col < x; col++) {
+            cputcxy(col, (uint8_t)(2 + row), line_buf[col]);
+        }
+    }
+
+    snprintf(info_buf, sizeof(info_buf), "Version %s", CLIENT_VERSION);
+    display_puts_limited(6, 9, info_buf, DISPLAY_WIDTH - 6);
+
+    if (host) {
+        snprintf(info_buf, sizeof(info_buf), "Server: %s:%u", host, port);
+    } else {
+        snprintf(info_buf, sizeof(info_buf), "Server: (unset)");
+    }
+    display_puts_limited(2, 12, info_buf, DISPLAY_WIDTH - 2);
+
+    display_puts_limited(2, 15, "Press any key to connect to server", DISPLAY_WIDTH - 2);
 }
 
 /**
@@ -96,6 +209,30 @@ void display_show_welcome(const char *server_name) {
     
     gotoxy(0, 11);
     printf("  Waiting for game world...\n");
+
+    display_clear_line(13, DISPLAY_WIDTH);
+    display_clear_line(14, DISPLAY_WIDTH);
+}
+
+/**
+ * Show live connection diagnostics (host, attempt count, status) on
+ * fixed rows 13-14. Overwrites in place so retries don't scroll the
+ * welcome screen off the top of the display.
+ */
+void display_show_connect_status(const char *host, uint16_t port, uint8_t attempt, const char *status) {
+    static char line_buf[41];
+
+    if (!host || !status) {
+        return;
+    }
+
+    display_clear_line(13, DISPLAY_WIDTH);
+    snprintf(line_buf, sizeof(line_buf), "  Host: %s:%u", host, port);
+    display_puts_limited(0, 13, line_buf, DISPLAY_WIDTH);
+
+    display_clear_line(14, DISPLAY_WIDTH);
+    snprintf(line_buf, sizeof(line_buf), "  Attempt %u: %s", attempt, status);
+    display_puts_limited(0, 14, line_buf, DISPLAY_WIDTH);
 }
 
 
@@ -187,17 +324,25 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
  */
 void display_draw_combat_message(const char *message) {
     static char line_buf[41];
-    
+    static char last_message[41] = "";
+
     if (!message) {
         return;
     }
-    
+
+    if (strcmp(message, last_message) == 0) {
+        return;
+    }
+
     /* Clear line first */
     display_clear_line(21, DISPLAY_WIDTH);
-    
+
     /* Draw message */
     snprintf(line_buf, sizeof(line_buf), "%s", message);
     display_puts_limited(0, 21, line_buf, DISPLAY_WIDTH);
+
+    strncpy(last_message, message, sizeof(last_message) - 1);
+    last_message[sizeof(last_message) - 1] = '\0';
 }
 
 /* Game Rendering */
