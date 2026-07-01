@@ -24,6 +24,20 @@
 
 /* Direct drawing to screen, no buffer needed */
 
+/*
+ * Per-screen font selection. On the Atari the game reuses printable
+ * characters (. @ # * +) as world tiles via a custom charset, so menu/text
+ * screens must switch back to the stock ROM font to render readable text
+ * (e.g. a server's domain name). No-ops on non-Atari targets.
+ */
+#ifdef __ATARI__
+#define USE_TEXT_FONT() atari_visuals_use_text()
+#define USE_GAME_FONT() atari_visuals_use_game()
+#else
+#define USE_TEXT_FONT() ((void)0)
+#define USE_GAME_FONT() ((void)0)
+#endif
+
 static uint8_t status_needs_redraw = 1;
 
 static void display_clear_line(uint8_t y, uint8_t width) {
@@ -157,6 +171,7 @@ void display_show_splash(const char *host, uint16_t port) {
     const char *glyph_row;
     uint8_t word_len = 8;
 
+    USE_TEXT_FONT();
     clrscr();
 
     for (row = 0; row < 5; row++) {
@@ -193,7 +208,8 @@ void display_show_splash(const char *host, uint16_t port) {
 void display_show_welcome(const char *server_name) {
     static char url_buf[60];
     (void)server_name; /* Suppress unused warning */
-    
+
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 4);
     printf("  *** KILLZONE ***\n");
@@ -261,7 +277,10 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
     if (!player_name || !connection_status) {
         return;
     }
-    
+
+    /* The status bar shares the play screen, so it uses the game font. */
+    USE_GAME_FONT();
+
     /* Line 20: Player info on left, ticks on right. */
     snprintf(line_buf, sizeof(line_buf), "%s P:%d %s", player_name, player_count, connection_status);
     if (status_needs_redraw || strcmp(line_buf, last_info_buf) != 0) {
@@ -359,7 +378,10 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     uint8_t y, i;
     uint8_t x;
     char entity_char;
-    
+
+    /* The world map uses the custom tile font (grass/players/monsters). */
+    USE_GAME_FONT();
+
     /* Initialize position tracking to invalid values on first call */
     if (!positions_initialized) {
         for (i = 0; i < MAX_OTHER_PLAYERS * 2; i++) {
@@ -513,6 +535,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
 /* Dialogs and Prompts */
 
 void display_show_join_prompt(void) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 5);
     printf("Enter player name:\n");
@@ -520,6 +543,7 @@ void display_show_join_prompt(void) {
 }
 
 void display_show_rejoining(const char *name) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 8);
     printf("  Rejoining as: %s\n", name);
@@ -528,6 +552,7 @@ void display_show_rejoining(const char *name) {
 }
 
 void display_show_quit_confirmation(void) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 8);
     printf("  Are you sure you want to quit?\n");
@@ -538,6 +563,7 @@ void display_show_quit_confirmation(void) {
 }
 
 void display_show_connection_lost(void) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 8);
     printf("  CONNECTION LOST\n");
@@ -550,6 +576,7 @@ void display_show_connection_lost(void) {
 }
 
 void display_show_death_message(void) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 8);
     printf("  *** YOU WERE KILLED! ***\n");
@@ -560,6 +587,7 @@ void display_show_death_message(void) {
 }
 
 void display_show_error(const char *error) {
+    USE_TEXT_FONT();
     clrscr();
     gotoxy(0, 10);
     printf("ERROR: %s\n", error);
