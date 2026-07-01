@@ -42,11 +42,12 @@ typedef struct {
 /* Client state machine */
 typedef enum {
     STATE_INIT = 0,
-    STATE_CONNECTING = 1,
-    STATE_JOINING = 2,
-    STATE_PLAYING = 3,
-    STATE_DEAD = 4,
-    STATE_ERROR = 5
+    STATE_SPLASH = 1,
+    STATE_CONNECTING = 2,
+    STATE_JOINING = 3,
+    STATE_PLAYING = 4,
+    STATE_DEAD = 5,
+    STATE_ERROR = 6
 } client_state_t;
 
 /* Rejoin flag */

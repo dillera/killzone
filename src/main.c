@@ -19,12 +19,16 @@
 #include <string.h>
 #include <ctype.h>
 #include <conio.h>
+#include <time.h>
 #endif
 
 #include "network.h"
 #include "state.h"
 #include "display.h"
 #include "input.h"
+#ifdef __ATARI__
+#include "atari_sound.h"
+#endif
 /* json.h is no longer needed as parsing is done in network.c */
 
 #include "constants.h"
@@ -34,11 +38,40 @@ void game_init(void);
 void game_loop(void);
 void game_close(void);
 void handle_state_init(void);
+void handle_state_splash(void);
 void handle_state_connecting(void);
 void handle_state_joining(void);
 void handle_state_playing(void);
 void handle_state_dead(void);
 void handle_state_error(void);
+
+/* Set by any successful (re)join so the next gameplay frame does a full
+ * clrscr() + redraw, instead of display_render_game's incremental-update
+ * path diffing against stale tracked positions left over from before the
+ * death/rejoin or connection-lost screens overwrote the display. */
+static int force_screen_refresh = 0;
+
+/**
+ * Pause for roughly the given number of seconds so on-screen status
+ * text is actually visible. A connect attempt can fail faster than a
+ * single video frame, so the state machine needs an explicit pause or
+ * diagnostic text never gets rendered before being overwritten.
+ */
+static void kz_pause_seconds(uint8_t seconds) {
+#ifdef _CMOC_VERSION_
+    volatile unsigned long i;
+    unsigned long iterations = (unsigned long)seconds * 200000UL;
+    for (i = 0; i < iterations; i++) {
+        /* busy wait */
+    }
+#else
+    clock_t start = clock();
+    clock_t target = (clock_t)seconds * CLOCKS_PER_SEC;
+    while ((clock() - start) < target) {
+        /* busy wait */
+    }
+#endif
+}
 
 /**
  * Main entry point
@@ -63,7 +96,9 @@ void game_init(void) {
         state_set_error("Network initialization failed");
         state_set_current(STATE_ERROR);
     } else {
-        state_set_current(STATE_CONNECTING);
+        /* Enter through the title screen so startup and quit-to-title
+         * share one logical flow: SPLASH -> CONNECTING -> JOINING. */
+        state_set_current(STATE_SPLASH);
     }
 }
 
@@ -92,6 +127,9 @@ void game_loop(void) {
             case STATE_INIT:
                 handle_state_init();
                 break;
+            case STATE_SPLASH:
+                handle_state_splash();
+                break;
             case STATE_CONNECTING:
                 handle_state_connecting();
                 break;
@@ -112,14 +150,37 @@ void game_loop(void) {
                 running = 0;
                 break;
         }
+
+#ifdef __ATARI__
+        atari_sound_tick();
+#endif
     }
-    
+
 }
 
 /**
  * Handle STATE_INIT
  */
 void handle_state_init(void) {
+    state_set_current(STATE_SPLASH);
+}
+
+/**
+ * Handle STATE_SPLASH
+ *
+ * The single title screen, reached both at startup and on quit-to-title.
+ * Show the KILLZONE banner and target server, play the jingle, then wait
+ * for the player to press a key before attempting to connect.
+ */
+void handle_state_splash(void) {
+    display_show_splash(SERVER_HOST, SERVER_TCP_PORT);
+#ifdef __ATARI__
+    /* Play the title jingle before blocking for a keypress. The melody
+     * routine is self-contained and blocks via RTCLOK, and there is no
+     * SIO activity yet at this point, so nothing competes for POKEY. */
+    atari_sound_play_melody();
+#endif
+    input_wait_key();
     state_set_current(STATE_CONNECTING);
 }
 
@@ -131,19 +192,35 @@ void handle_state_init(void) {
 void handle_state_connecting(void) {
     static int attempt = 0;
     static int welcome_shown = 0;
-    
-    /* Show welcome screen once */
+    static char status_buf[40];
+
+    /* Show the connect-progress screen once. The title banner and jingle
+     * already played in STATE_SPLASH; this screen just reports connection
+     * status while the health-check retries. */
     if (!welcome_shown) {
         display_show_welcome(SERVER_HOST);
         welcome_shown = 1;
     }
-    
+
+    attempt++;
+    display_show_connect_status(SERVER_HOST, SERVER_TCP_PORT, attempt, "connecting...");
+    kz_pause_seconds(1);
+
     if (kz_network_health_check()) {
+        display_show_connect_status(SERVER_HOST, SERVER_TCP_PORT, attempt, "connected!");
+        kz_pause_seconds(1);
         state_set_current(STATE_JOINING);
-    } else if (++attempt > 10) {
+    } else if (attempt > 10) {
         /* Give up after 10 attempts */
+        snprintf(status_buf, sizeof(status_buf), "timed out (err %u)", kz_network_get_last_error());
+        display_show_connect_status(SERVER_HOST, SERVER_TCP_PORT, attempt, status_buf);
+        kz_pause_seconds(2);
         state_set_error("Server not responding");
         state_set_current(STATE_ERROR);
+    } else {
+        snprintf(status_buf, sizeof(status_buf), "failed (err %u), retrying...", kz_network_get_last_error());
+        display_show_connect_status(SERVER_HOST, SERVER_TCP_PORT, attempt, status_buf);
+        kz_pause_seconds(1);
     }
 }
 
@@ -175,6 +252,10 @@ void handle_state_joining(void) {
             
             /* Send join request immediately */
             if (kz_network_join_player(player_name, &new_player)) {
+#ifdef __ATARI__
+                atari_sound_play_join();
+#endif
+                force_screen_refresh = 1;
                 state_set_current(STATE_PLAYING);
             } else {
                 state_set_error("Rejoin failed");
@@ -218,6 +299,10 @@ void handle_state_joining(void) {
     }
     
     if (kz_network_join_player(player_name, &new_player)) {
+#ifdef __ATARI__
+        atari_sound_play_join();
+#endif
+        force_screen_refresh = 1;
         state_set_current(STATE_PLAYING);
     } else {
         state_set_error("Server rejected join");
@@ -227,11 +312,9 @@ void handle_state_joining(void) {
 
 /**
  * Handle STATE_PLAYING
- * 
+ *
  * Main gameplay loop with input and movement
  */
-/* Module-level flag for screen refresh */
-static int force_screen_refresh = 0;
 
 void handle_state_playing(void) {
     static int frame_count = 0;
@@ -244,8 +327,12 @@ void handle_state_playing(void) {
     move_result_t move_res;
     input_cmd_t cmd; /* Moved declaration to top */
     
-    /* Get world state periodically (every 5 frames) */
-    if (frame_count++ % 5 == 0) {
+    /* Get world state periodically (every 20 frames). Less frequent than
+     * the original 5 - the SIO/NetSIO serial clock is audible while a
+     * transfer is in progress (real hardware behavior, not a bug), so
+     * polling less often leaves more quiet time between transfers for
+     * our own POKEY sound effects to be heard. */
+    if (frame_count++ % 20 == 0) {
         if (!kz_network_get_world_state()) {
             /* Optional: handle network error during update */
         }
@@ -274,11 +361,9 @@ void handle_state_playing(void) {
             status = state_is_connected() ? "CONNECTED" : "DISCONNECTED";
             display_draw_status_bar(player->name, player_count, status, state_get_world_ticks());
             
-            /* Display combat message if present */
+            /* Display combat message, or clear the line once it expires */
             combat_msg = state_get_combat_message();
-            if (combat_msg && combat_msg[0] != '\0') {
-                display_draw_combat_message(combat_msg);
-            }
+            display_draw_combat_message(combat_msg);
         }
     }
     
@@ -382,6 +467,9 @@ void handle_state_playing(void) {
                     /* If we are the loser, transition to dead state */
                     if (strcmp(move_res.loser_id, player->id) == 0)
                     {
+#ifdef __ATARI__
+                        atari_sound_play_death();
+#endif
                         state_set_current(STATE_DEAD);
                     }
                 }

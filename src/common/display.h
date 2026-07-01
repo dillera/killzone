@@ -22,6 +22,8 @@
 void display_init(void);
 void display_close(void);
 void display_show_welcome(const char *server_name);
+void display_show_connect_status(const char *host, uint16_t port, uint8_t attempt, const char *status);
+void display_show_splash(const char *host, uint16_t port);
 
 /* Rendering */
 /* Rendering */

@@ -41,6 +41,9 @@ uint8_t kz_network_init(void);
 uint8_t kz_network_close(void);
 network_status_t kz_network_get_status(void);
 
+/* Last raw FujiNet error code from the most recent TCP connect attempt */
+uint8_t kz_network_get_last_error(void);
+
 /* Server communication */
 /* Returns 1 if healthy, 0 if not */
 uint8_t kz_network_health_check(void);

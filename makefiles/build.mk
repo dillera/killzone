@@ -5,6 +5,11 @@ DISK_TASKS =
 
 -include ./makefiles/os.mk
 
+# Optional local-testing override, e.g.: make atari KZ_SERVER_HOST=localhost
+ifdef KZ_SERVER_HOST
+CFLAGS += -DSERVER_HOST=\"$(KZ_SERVER_HOST)\"
+endif
+
 SRCDIR := src
 BUILD_DIR := build
 OBJDIR := obj

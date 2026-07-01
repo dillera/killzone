@@ -23,17 +23,31 @@
 #define SCREEN_CODE_DOT 14
 #define SCREEN_CODE_AT 32
 
+/* Font/color mode currently selected on screen. */
+#define MODE_TEXT 0
+#define MODE_GAME 1
+
 static unsigned char charset_storage[CHARSET_SIZE + 1024];
 static unsigned char *game_charset;
-static unsigned char old_chbas;
-static unsigned char old_colors[5];
+static unsigned char game_charset_page;   /* high byte of game_charset for CHBAS */
+static unsigned char old_chbas;            /* original ROM-font CHBAS */
+static unsigned char old_colors[5];        /* original text-screen colors */
 static unsigned char initialized;
+static unsigned char current_mode;
 
 static void patch_glyph(unsigned char screen_code, const unsigned char *glyph)
 {
     memcpy(game_charset + ((unsigned int)screen_code * 8), glyph, 8);
 }
 
+/*
+ * Build the game charset once: a copy of the ROM font with the tile
+ * characters (. @ # * +) overwritten by grass/player/monster glyphs.
+ * The map reuses those printable codes as tiles, which is exactly why the
+ * game font must NOT be active on text screens (a domain name's '.' would
+ * render as grass). Callers select the font per screen via
+ * atari_visuals_use_text()/atari_visuals_use_game().
+ */
 void atari_visuals_init(void)
 {
     unsigned int addr;
@@ -72,6 +86,7 @@ void atari_visuals_init(void)
     addr = (unsigned int)charset_storage;
     addr = (addr + 1023) & CHARSET_ALIGN_MASK;
     game_charset = (unsigned char *)addr;
+    game_charset_page = (unsigned char)(addr >> 8);
 
     memcpy(game_charset, (const void *)ROM_CHARSET_ADDR, CHARSET_SIZE);
     patch_glyph(SCREEN_CODE_DOT, grass_glyph);
@@ -80,14 +95,53 @@ void atari_visuals_init(void)
     patch_glyph(SCREEN_CODE_STAR, goblin_glyph);
     patch_glyph(SCREEN_CODE_PLUS, hunter_glyph);
 
-    POKE(CHBAS, (unsigned char)(addr >> 8));
+    /* Start on the stock ROM font: the first screen shown is the title/
+     * menu, which needs readable text (real periods, '@', etc.). */
+    initialized = 1;
+    current_mode = MODE_GAME;   /* force the switch below to take effect */
+    atari_visuals_use_text();
+}
+
+/*
+ * Select the stock ROM font and original colors for menu/text screens.
+ * Cheap: just restores CHBAS and the color registers. No-op if already
+ * in text mode, so it is safe to call at the top of every text screen.
+ */
+void atari_visuals_use_text(void)
+{
+    if (!initialized || current_mode == MODE_TEXT) {
+        return;
+    }
+
+    POKE(CHBAS, old_chbas);
+    POKE(COLOR0, old_colors[0]);
+    POKE(COLOR1, old_colors[1]);
+    POKE(COLOR2, old_colors[2]);
+    POKE(COLOR3, old_colors[3]);
+    POKE(COLOR4, old_colors[4]);
+
+    current_mode = MODE_TEXT;
+}
+
+/*
+ * Select the custom game font (grass/players/monsters) and the green
+ * play-field palette. No-op if already in game mode, so it is safe to
+ * call at the top of every world-render pass.
+ */
+void atari_visuals_use_game(void)
+{
+    if (!initialized || current_mode == MODE_GAME) {
+        return;
+    }
+
+    POKE(CHBAS, game_charset_page);
     POKE(COLOR0, COLOR_LIGHT_GREEN);
     POKE(COLOR1, COLOR_LIGHT_GREEN);
     POKE(COLOR2, COLOR_BLACK);
     POKE(COLOR3, COLOR_LIGHT_GREEN);
     POKE(COLOR4, COLOR_BLACK);
 
-    initialized = 1;
+    current_mode = MODE_GAME;
 }
 
 void atari_visuals_shutdown(void)
@@ -104,4 +158,5 @@ void atari_visuals_shutdown(void)
     POKE(COLOR4, old_colors[4]);
 
     initialized = 0;
+    current_mode = MODE_TEXT;
 }

@@ -9,7 +9,7 @@
 
 /* Game Info */
 #define GAME_TITLE "KillZone"
-#define CLIENT_VERSION "1.2.0"
+#define CLIENT_VERSION "1.3.0"
 
 /* Display Dimensions */
 #define DISPLAY_WIDTH 40
@@ -29,7 +29,10 @@
 #define PLAYER_NAME_MAX 32
 
 /* Server Configuration */
+/* Override at build time with: make atari KZ_SERVER_HOST=localhost */
+#ifndef SERVER_HOST
 #define SERVER_HOST "fujinet.diller.org"
+#endif
 #define SERVER_PORT 3000
 #define SERVER_PROTO "http"
 #define SERVER_TCP_PORT 6809
