@@ -146,17 +146,6 @@ void atari_sound_tick(void) {
  * frame-tick sequencer is not running (input_wait_key blocks the loop). */
 #define RTCLOK2 ((unsigned int)20U)
 
-static void melody_wait_frames(unsigned char n) {
-    unsigned char last;
-    while (n != 0) {
-        last = PEEK(RTCLOK2);
-        while (PEEK(RTCLOK2) == last) {
-            /* spin until the next vertical-blank tick */
-        }
-        n--;
-    }
-}
-
 typedef struct {
     unsigned char freq;   /* PAL 8-bit AUDF divider value */
     unsigned char frames; /* note duration in VBI frames */

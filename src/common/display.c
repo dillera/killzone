@@ -149,7 +149,10 @@ static const char *splash_glyph_row(char letter, uint8_t row) {
 void display_show_splash(const char *host, uint16_t port) {
     static const char word[] = "KILLZONE";
     static char line_buf[41];
-    static char info_buf[30];
+    /* Full display-line width (+NUL). "Server: <host>:<port>" can reach
+     * 31+ chars for the default host, so a 30-byte buffer truncated the
+     * port; size to the full line so it is never clipped by snprintf. */
+    static char info_buf[41];
     uint8_t row, col, letter_idx, glyph_col, x;
     const char *glyph_row;
     uint8_t word_len = 8;
@@ -300,7 +303,7 @@ void display_draw_status_bar(const char *player_name, uint8_t player_count,
         static_status_drawn = 1;
     }
     
-    /* Version display at far right: C1.1.0|S1.1.0 */
+    /* Version display at far right: C<client>|S<server>, e.g. C1.3.0|S1.3.0 */
     server_ver = state_get_server_version();
     snprintf(ver_buf, sizeof(ver_buf), "C%s|S%s", CLIENT_VERSION, server_ver);
     if (status_needs_redraw || strcmp(ver_buf, last_ver_buf) != 0) {

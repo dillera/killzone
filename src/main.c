@@ -96,7 +96,9 @@ void game_init(void) {
         state_set_error("Network initialization failed");
         state_set_current(STATE_ERROR);
     } else {
-        state_set_current(STATE_CONNECTING);
+        /* Enter through the title screen so startup and quit-to-title
+         * share one logical flow: SPLASH -> CONNECTING -> JOINING. */
+        state_set_current(STATE_SPLASH);
     }
 }
 
@@ -166,11 +168,18 @@ void handle_state_init(void) {
 /**
  * Handle STATE_SPLASH
  *
- * Show the title screen with the target server and wait for the
- * player to press a key before attempting to connect.
+ * The single title screen, reached both at startup and on quit-to-title.
+ * Show the KILLZONE banner and target server, play the jingle, then wait
+ * for the player to press a key before attempting to connect.
  */
 void handle_state_splash(void) {
     display_show_splash(SERVER_HOST, SERVER_TCP_PORT);
+#ifdef __ATARI__
+    /* Play the title jingle before blocking for a keypress. The melody
+     * routine is self-contained and blocks via RTCLOK, and there is no
+     * SIO activity yet at this point, so nothing competes for POKEY. */
+    atari_sound_play_melody();
+#endif
     input_wait_key();
     state_set_current(STATE_CONNECTING);
 }
@@ -185,15 +194,11 @@ void handle_state_connecting(void) {
     static int welcome_shown = 0;
     static char status_buf[40];
 
-    /* Show welcome screen once */
+    /* Show the connect-progress screen once. The title banner and jingle
+     * already played in STATE_SPLASH; this screen just reports connection
+     * status while the health-check retries. */
     if (!welcome_shown) {
         display_show_welcome(SERVER_HOST);
-#ifdef __ATARI__
-        /* Play the splash jingle here: this handler is actually reached,
-         * unlike handle_state_splash(), and this runs before the first
-         * network health-check so there is no SIO activity competing. */
-        atari_sound_play_melody();
-#endif
         welcome_shown = 1;
     }
 
