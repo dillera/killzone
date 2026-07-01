@@ -11,6 +11,14 @@ function buildJoinPacket(name) {
   ]);
 }
 
+function buildHelloPacket(version) {
+  const verBuf = Buffer.from(version);
+  return Buffer.concat([
+    Buffer.from([0x04, verBuf.length]),
+    verBuf
+  ]);
+}
+
 function parseJoinResponse(buf) {
   let offset = 0;
   const type = buf.readUInt8(offset++);
@@ -304,6 +312,66 @@ describe('TCP Server Protocol', () => {
 
     // Declares name length 32 (max allowed is 31)
     client.write(Buffer.from([0x01, 0x20]));
+
+    await expect(Promise.race([
+      once(client, 'close').then(() => 'closed'),
+      waitForData(client, 250).then(() => 'data')
+    ])).resolves.toBe('closed');
+  });
+
+  test('accepts a 0x04 hello packet and still allows a subsequent join', async () => {
+    const { world, tcpServer, client } = await createServerAndClient();
+    sockets.push(client);
+    servers.push(tcpServer.server);
+
+    client.write(buildHelloPacket('1.3.0'));
+    client.write(buildJoinPacket('HelloUser'));
+
+    const joinRespRaw = await waitForData(client);
+    const joinResp = parseJoinResponse(joinRespRaw);
+
+    expect(joinResp.type).toBe(0x01);
+    expect(joinResp.id).toMatch(/^player_/);
+    expect(world.getPlayerCount()).toBe(1);
+    expect(client.destroyed).toBe(false);
+  });
+
+  test('join without a preceding hello still works (legacy client backward compat)', async () => {
+    const { world, tcpServer, client } = await createServerAndClient();
+    sockets.push(client);
+    servers.push(tcpServer.server);
+
+    client.write(buildJoinPacket('LegacyUser'));
+
+    const joinRespRaw = await waitForData(client);
+    const joinResp = parseJoinResponse(joinRespRaw);
+
+    expect(joinResp.type).toBe(0x01);
+    expect(joinResp.id).toMatch(/^player_/);
+    expect(world.getPlayerCount()).toBe(1);
+    expect(client.destroyed).toBe(false);
+  });
+
+  test('rejects a malformed hello (VerLen 0) by closing the socket', async () => {
+    const { tcpServer, client } = await createServerAndClient();
+    sockets.push(client);
+    servers.push(tcpServer.server);
+
+    client.write(Buffer.from([0x04, 0x00]));
+
+    await expect(Promise.race([
+      once(client, 'close').then(() => 'closed'),
+      waitForData(client, 250).then(() => 'data')
+    ])).resolves.toBe('closed');
+  });
+
+  test('rejects a malformed hello (VerLen > 15) by closing the socket', async () => {
+    const { tcpServer, client } = await createServerAndClient();
+    sockets.push(client);
+    servers.push(tcpServer.server);
+
+    // Declares version length 16 (max allowed is 15)
+    client.write(Buffer.from([0x04, 0x10]));
 
     await expect(Promise.race([
       once(client, 'close').then(() => 'closed'),

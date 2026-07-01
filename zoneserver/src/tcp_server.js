@@ -1,6 +1,7 @@
 const net = require('net');
 const Player = require('./player');
 const CombatResolver = require('./combat');
+const logger = require('./logger');
 
 /**
  * TCP Server for KillZone
@@ -16,20 +17,22 @@ class TcpServer {
 
     start() {
         this.server.listen(this.port, () => {
-            console.log(`KillZone TCP Server running on port ${this.port}`);
+            logger.info(`KillZone TCP Server running on port ${this.port}`);
         });
     }
 
     handleConnection(socket) {
-        console.log(`TCP Client connected: ${socket.remoteAddress}`);
+        logger.info(`TCP connect from ${socket.remoteAddress}`);
         this.clients.add(socket);
 
         socket.player = null; // Associated player object
         socket.rxBuffer = Buffer.alloc(0); // TCP stream reassembly buffer
+        socket.clientVersion = 'legacy'; // Overwritten by a 0x04 hello packet, if sent
+        socket.connectedAt = Date.now();
 
         socket.on('data', (data) => this.handleData(socket, data));
         socket.on('close', () => this.handleClose(socket));
-        socket.on('error', (err) => console.error(`Socket error: ${err.message}`));
+        socket.on('error', (err) => logger.error(`TCP socket error from ${socket.remoteAddress}: ${err.message}`));
     }
 
     handleData(socket, data) {
@@ -47,13 +50,14 @@ class TcpServer {
             // 0x01 [NameLen] [Name...]
             // 0x02 [DirChar]
             // 0x03
+            // 0x04 [VerLen] [Version...]
             if (packetType === 0x01) {
                 if (socket.rxBuffer.length < 2) {
                     return;
                 }
                 // Protocol guardrails: 1..31 byte names only.
                 if (socket.rxBuffer[1] === 0 || socket.rxBuffer[1] > 31) {
-                    console.log(`Invalid join name length: ${socket.rxBuffer[1]}`);
+                    logger.warn(`TCP invalid join name length: ${socket.rxBuffer[1]} from ${socket.remoteAddress}`);
                     socket.destroy();
                     return;
                 }
@@ -62,8 +66,19 @@ class TcpServer {
                 packetLen = 2;
             } else if (packetType === 0x03) {
                 packetLen = 1;
+            } else if (packetType === 0x04) {
+                if (socket.rxBuffer.length < 2) {
+                    return;
+                }
+                // Protocol guardrails: 1..15 byte version strings only.
+                if (socket.rxBuffer[1] === 0 || socket.rxBuffer[1] > 15) {
+                    logger.warn(`TCP invalid hello version length: ${socket.rxBuffer[1]} from ${socket.remoteAddress}`);
+                    socket.destroy();
+                    return;
+                }
+                packetLen = 2 + socket.rxBuffer[1];
             } else {
-                console.log(`Unknown packet type: ${packetType}`);
+                logger.warn(`TCP unknown packet type: 0x${packetType.toString(16)} from ${socket.remoteAddress}`);
                 socket.rxBuffer = socket.rxBuffer.slice(1);
                 continue;
             }
@@ -86,11 +101,14 @@ class TcpServer {
                     case 0x03: // Get State
                         this.handleGetState(socket);
                         break;
+                    case 0x04: // Hello (client version)
+                        this.handleHello(socket, packet.slice(1));
+                        break;
                     default:
                         break;
                 }
             } catch (e) {
-                console.error(`Error handling TCP data: ${e.message}`);
+                logger.error(`Error handling TCP data: ${e.message}`);
             }
         }
     }
@@ -118,13 +136,22 @@ class TcpServer {
         socket.write(resp);
     }
 
+    handleHello(socket, data) {
+        if (data.length < 1) return;
+        const verLen = data[0];
+        if (data.length < 1 + verLen) return;
+
+        const version = data.slice(1, 1 + verLen).toString();
+        socket.clientVersion = version;
+        logger.info(`TCP hello: client v${version} from ${socket.remoteAddress}`);
+    }
+
     handleJoin(socket, data) {
         if (data.length < 1) return;
         const nameLen = data[0];
         if (data.length < 1 + nameLen) return;
 
         const name = data.slice(1, 1 + nameLen).toString();
-        console.log(`TCP Join Request: ${name}`);
 
         // Check if previously disconnected
         const disconnectedPlayer = this.world.getDisconnectedPlayer(name);
@@ -148,7 +175,7 @@ class TcpServer {
             this.world.removeDisconnectedPlayer(name);
             this.world.addPlayer(player);
             this.world.setRejoinMessage(name);
-            console.log(`  🔄 TCP Rejoin: ${name}`);
+            logger.info(`TCP join: "${name}" (client v${socket.clientVersion}) REJOIN at (${player.x},${player.y}) -- players now ${this.world.players.size}`);
         } else {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             let x, y;
@@ -162,7 +189,7 @@ class TcpServer {
             player = new Player(playerId, name, x, y);
             this.world.addPlayer(player);
             this.world.setJoinMessage(name);
-            console.log(`  👤 TCP Join: ${name}`);
+            logger.info(`TCP join: "${name}" (client v${socket.clientVersion}) NEW at (${player.x},${player.y}) -- players now ${this.world.players.size}`);
         }
 
         socket.player = player;
@@ -234,7 +261,7 @@ class TcpServer {
         if (collidingPlayer) {
             hadCollision = true;
             const result = CombatResolver.resolveBattle(activePlayer, collidingPlayer);
-            console.log(`  ⚔️  TCP Combat: "${activePlayer.name}" vs "${collidingPlayer.name}" - Winner: "${result.finalWinnerName}"`);
+            logger.info(`TCP combat: "${activePlayer.name}" vs "${collidingPlayer.name}" -> winner "${result.finalWinnerName}"`);
             battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
             loserId = result.finalLoserId || '';
             if (result.finalLoserId === activePlayer.id) {
@@ -249,7 +276,7 @@ class TcpServer {
         } else if (collidingMob) {
             hadCollision = true;
             const result = CombatResolver.resolveBattle(activePlayer, collidingMob);
-            console.log(`  ⚔️  TCP Combat: "${activePlayer.name}" vs "${collidingMob.name}" - Winner: "${result.finalWinnerName}"`);
+            logger.info(`TCP combat: "${activePlayer.name}" vs "${collidingMob.name}" -> winner "${result.finalWinnerName}"`);
             battleMsg = `${result.finalWinnerName} defeats ${result.finalLoserName}!`;
             loserId = result.finalLoserId || '';
             if (result.finalLoserId === activePlayer.id) {
@@ -263,7 +290,7 @@ class TcpServer {
         } else {
             // Move
             activePlayer.setPosition(newX, newY);
-            console.log(`  🎮 TCP Move: ${activePlayer.name} to (${newX}, ${newY})`);
+            logger.debug(`TCP move: "${activePlayer.name}" to (${newX}, ${newY})`);
         }
 
         this.sendMoveResponse(socket, activePlayer, hadCollision, battleMsg, loserId);
@@ -318,13 +345,17 @@ class TcpServer {
             buf.writeUInt8(Math.floor(ent.y), offset++);
         }
 
+        logger.debug(`TCP state -> ${socket.player ? `"${socket.player.name}"` : '?'}: count=${count} tick=${ticks}`);
+
         socket.write(buf);
     }
 
     handleClose(socket) {
         this.clients.delete(socket);
+        const durationSec = socket.connectedAt ? ((Date.now() - socket.connectedAt) / 1000).toFixed(1) : '?';
+        const name = socket.player ? `"${socket.player.name}"` : '(unjoined)';
+        logger.info(`TCP disconnect: ${name} after ${durationSec}s`);
         if (socket.player) {
-            console.log(`TCP Client Disconnected: ${socket.player.name}`);
             this.world.removePlayer(socket.player.id);
         }
     }

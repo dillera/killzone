@@ -50,6 +50,22 @@ static void mark_disconnected(void) {
 
 static uint8_t last_tcp_err = FN_ERR_OK;
 
+/* Report our client version to the server as the first thing on a new
+ * connection. Packet: 0x04 [VerLen] [Version]. Best-effort - the server
+ * treats a missing hello as a "legacy" client, so we ignore write errors
+ * here and let the subsequent join/health-check surface a dead socket. */
+static void send_client_hello(void) {
+    static uint8_t buf[20];
+    uint8_t vlen = (uint8_t)strlen(CLIENT_VERSION);
+    if (vlen == 0 || vlen > 15) {
+        return;
+    }
+    buf[0] = 0x04;
+    buf[1] = vlen;
+    memcpy(&buf[2], CLIENT_VERSION, vlen);
+    network_write(tcp_device_spec, buf, (uint16_t)(2 + vlen));
+}
+
 static uint8_t tcp_connect(void) {
     uint8_t err;
     snprintf(tcp_device_spec, sizeof(tcp_device_spec), "N:TCP://%s:%d", SERVER_HOST, SERVER_TCP_PORT);
@@ -61,6 +77,7 @@ static uint8_t tcp_connect(void) {
         return 0;
     }
     mark_connected();
+    send_client_hello();
     return 1;
 }
 

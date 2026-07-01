@@ -327,12 +327,10 @@ void handle_state_playing(void) {
     move_result_t move_res;
     input_cmd_t cmd; /* Moved declaration to top */
     
-    /* Get world state periodically (every 20 frames). Less frequent than
-     * the original 5 - the SIO/NetSIO serial clock is audible while a
-     * transfer is in progress (real hardware behavior, not a bug), so
-     * polling less often leaves more quiet time between transfers for
-     * our own POKEY sound effects to be heard. */
-    if (frame_count++ % 20 == 0) {
+    /* Get world state periodically. Interval is a tunable constant
+     * (WORLD_POLL_INTERVAL_FRAMES) since each poll is a blocking TCP
+     * round-trip and the right cadence depends on real-world latency. */
+    if (frame_count++ % WORLD_POLL_INTERVAL_FRAMES == 0) {
         if (!kz_network_get_world_state()) {
             /* Optional: handle network error during update */
         }

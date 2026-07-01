@@ -11,17 +11,21 @@ const World = require('./world');
 const Mob = require('./mob');
 const createApiRoutes = require('./routes/api');
 const TcpServer = require('./tcp_server');
+const logger = require('./logger');
+const pkg = require('../package.json');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const TCP_PORT = parseInt(process.env.TCP_PORT || '6809', 10);
+const WORLD_WIDTH = 40;
+const WORLD_HEIGHT = 20;
 
 // Initialize world
-const world = new World(40, 20);
+const world = new World(WORLD_WIDTH, WORLD_HEIGHT);
 
 // Spawn initial mobs for testing multi-player rendering
 function spawnMobs() {
   world.respawnMobs(3);
-  console.log(`🎮 Spawned initial mobs`);
+  logger.info('Spawned initial mobs');
 }
 
 // Create Express app
@@ -82,7 +86,7 @@ app.use('/api', createApiRoutes(world));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error(`Express error: ${err && err.message ? err.message : err}`);
   res.status(500).json({
     success: false,
     error: 'Internal server error'
@@ -105,9 +109,9 @@ if (process.env.NODE_ENV !== 'test') {
   tcpServer.start();
 
   server = app.listen(PORT, () => {
-    console.log(`KillZone Server running on http://localhost:${PORT}`);
-    console.log(`World dimensions: 40x20`);
-    console.log(`API health check: GET http://localhost:${PORT}/api/health`);
+    logger.info(`KillZone server v${pkg.version} starting`);
+    logger.info(`HTTP :${PORT}  TCP :${TCP_PORT}  world ${WORLD_WIDTH}x${WORLD_HEIGHT}  log level ${logger.getLevel()}`);
+    logger.info(`API health check: GET http://localhost:${PORT}/api/health`);
 
     // Spawn mobs for testing
     spawnMobs();
@@ -119,7 +123,7 @@ if (process.env.NODE_ENV !== 'test') {
         const spawnedMobs = world.respawnMobs(3);
         if (spawnedMobs.length > 0) {
           const hunterInfo = spawnedMobs.some(m => m.isHunter) ? ' (including Hunter)' : '';
-          console.log(`  🎮 Respawned ${spawnedMobs.length} mobs${hunterInfo}`);
+          logger.info(`Respawned ${spawnedMobs.length} mobs${hunterInfo}`);
         }
       }
 
@@ -127,7 +131,7 @@ if (process.env.NODE_ENV !== 'test') {
       if (world.ticks % 600 === 0) {
         const inactivePlayers = world.cleanupInactivePlayers(120000);
         if (inactivePlayers.length > 0) {
-          console.log(`  🧹 Cleaned up ${inactivePlayers.length} inactive player(s): ${inactivePlayers.map(p => p.name).join(', ')}`);
+          logger.info(`Cleaned up ${inactivePlayers.length} inactive player(s): ${inactivePlayers.map(p => p.name).join(', ')}`);
         }
       }
     }, 100);  // Check every 100ms
@@ -135,9 +139,9 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Graceful shutdown
   process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully...');
+    logger.info('SIGTERM received, shutting down gracefully...');
     server.close(() => {
-      console.log('Server closed');
+      logger.info('Server closed');
       process.exit(0);
     });
   });
