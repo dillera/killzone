@@ -1,6 +1,6 @@
 {
   "name": "killzone-server",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "KillZone multiplayer game server",
   "main": "src/server.js",
   "scripts": {
