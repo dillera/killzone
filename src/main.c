@@ -188,6 +188,12 @@ void handle_state_connecting(void) {
     /* Show welcome screen once */
     if (!welcome_shown) {
         display_show_welcome(SERVER_HOST);
+#ifdef __ATARI__
+        /* Play the splash jingle here: this handler is actually reached,
+         * unlike handle_state_splash(), and this runs before the first
+         * network health-check so there is no SIO activity competing. */
+        atari_sound_play_melody();
+#endif
         welcome_shown = 1;
     }
 

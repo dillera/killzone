@@ -19,5 +19,6 @@ void atari_sound_play_hit(void);
 void atari_sound_play_kill(void);
 void atari_sound_play_join(void);
 void atari_sound_play_death(void);
+void atari_sound_play_melody(void);
 
 #endif

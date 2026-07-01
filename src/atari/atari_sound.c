@@ -141,6 +141,83 @@ void atari_sound_tick(void) {
     }
 }
 
+/* RTCLOK low byte ($14) - incremented by the OS every vertical blank.
+ * Used for blocking note timing on the splash screen, where the main
+ * frame-tick sequencer is not running (input_wait_key blocks the loop). */
+#define RTCLOK2 ((unsigned int)20U)
+
+static void melody_wait_frames(unsigned char n) {
+    unsigned char last;
+    while (n != 0) {
+        last = PEEK(RTCLOK2);
+        while (PEEK(RTCLOK2) == last) {
+            /* spin until the next vertical-blank tick */
+        }
+        n--;
+    }
+}
+
+typedef struct {
+    unsigned char freq;   /* PAL 8-bit AUDF divider value */
+    unsigned char frames; /* note duration in VBI frames */
+} melody_note_t;
+
+/* Beethoven - Ode to Joy (first phrase): E E F G G F E D C C D E  E. D D
+ * PAL AUDF values: C4=0x1D D4=0x1A E4=0x17 F4=0x16 G4=0x13 */
+static const melody_note_t ode_to_joy[] = {
+    { 0x17, 16 }, { 0x17, 16 }, { 0x16, 16 }, { 0x13, 16 },
+    { 0x13, 16 }, { 0x16, 16 }, { 0x17, 16 }, { 0x1A, 16 },
+    { 0x1D, 16 }, { 0x1D, 16 }, { 0x1A, 16 }, { 0x17, 16 },
+    { 0x17, 24 }, { 0x1A,  8 }, { 0x1A, 32 }
+};
+
+void atari_sound_play_melody(void) {
+    unsigned char i;
+    unsigned char f;
+    unsigned char tone_frames;
+    unsigned char last;
+    unsigned char count = (unsigned char)(sizeof(ode_to_joy) / sizeof(ode_to_joy[0]));
+
+    if (!initialized) {
+        return;
+    }
+
+    POKE(SKCTL, 0x03);   /* ensure POKEY audio clock is running */
+    POKE(AUDCTL, 0);     /* plain 8-bit tone mode, 64KHz base clock */
+
+    for (i = 0; i < count; i++) {
+        /* Last 2 frames of each note are silent, for note separation. */
+        tone_frames = ode_to_joy[i].frames;
+        if (tone_frames > 2) {
+            tone_frames = (unsigned char)(tone_frames - 2);
+        } else {
+            tone_frames = 0;
+        }
+
+        for (f = 0; f < ode_to_joy[i].frames; f++) {
+            /* Re-assert the note EVERY frame. SIO/OS activity clobbers the
+             * channel-1 volume nibble between frames; the working sound
+             * effects survive by re-poking every tick, so the melody must
+             * do the same or its notes fall silent. */
+            POKE(AUDF1, ode_to_joy[i].freq);
+            if (f < tone_frames) {
+                POKE(AUDC1, AUDC_PURE_TONE | 8);   /* pure tone, volume 8 */
+            } else {
+                POKE(AUDC1, 0);                    /* gap between notes */
+            }
+
+            /* Wait one video frame via the OS frame counter (verified to
+             * increment ~1 per frame in this environment). */
+            last = PEEK(RTCLOK2);
+            while (PEEK(RTCLOK2) == last) {
+                /* spin until the next vertical-blank tick */
+            }
+        }
+    }
+
+    POKE(AUDC1, 0);      /* silence when done */
+}
+
 void atari_sound_play_hit(void) {
     play_sequence(hit_steps, sizeof(hit_steps) / sizeof(hit_steps[0]));
 }
