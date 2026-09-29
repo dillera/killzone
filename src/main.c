@@ -29,7 +29,6 @@
 #ifdef __ATARI__
 #include "atari_sound.h"
 #endif
-/* json.h is no longer needed as parsing is done in network.c */
 
 #include "constants.h"
 
@@ -59,11 +58,7 @@ static int force_screen_refresh = 0;
  */
 static void kz_pause_seconds(uint8_t seconds) {
 #ifdef _CMOC_VERSION_
-    volatile unsigned long i;
-    unsigned long iterations = (unsigned long)seconds * 200000UL;
-    for (i = 0; i < iterations; i++) {
-        /* busy wait */
-    }
+    sleep(seconds);
 #else
     clock_t start = clock();
     clock_t target = (clock_t)seconds * CLOCKS_PER_SEC;
@@ -211,7 +206,7 @@ void handle_state_connecting(void) {
         kz_pause_seconds(1);
         state_set_current(STATE_JOINING);
     } else if (attempt > 10) {
-        /* Give up after 10 attempts */
+        /* Give up after 11 attempts */
         snprintf(status_buf, sizeof(status_buf), "timed out (err %u)", kz_network_get_last_error());
         display_show_connect_status(SERVER_HOST, SERVER_TCP_PORT, attempt, status_buf);
         kz_pause_seconds(2);
@@ -325,7 +320,7 @@ void handle_state_playing(void) {
     const player_state_t *others;
     const char *status;
     move_result_t move_res;
-    input_cmd_t cmd; /* Moved declaration to top */
+    input_cmd_t cmd;
     
     /* Get world state periodically (every 20 frames). Less frequent than
      * the original 5 - the SIO/NetSIO serial clock is audible while a
@@ -485,7 +480,7 @@ void handle_state_playing(void) {
  */
 void handle_state_dead(void) {
     static int shown = 0;
-    input_cmd_t cmd; /* Moved declaration to top */
+    input_cmd_t cmd;
     
     /* Show death message once */
     if (!shown) {

@@ -4,7 +4,7 @@ TARGETS = atari coco
 PROGRAM := killzone
 
 # Set this to the version of FN-LIB you wish to use in this project:
-export FUJINET_LIB_VERSION := 4.9.0
+export FUJINET_LIB_VERSION := 4.11.2
 
 SUB_TASKS := clean disk test release
 .PHONY: all help apple2 apple2enh apple2-disk apple2-release apple2enh-disk apple2enh-release $(SUB_TASKS)

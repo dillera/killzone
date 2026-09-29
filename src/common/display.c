@@ -161,7 +161,7 @@ static const char *splash_glyph_row(char letter, uint8_t row) {
  * waiting on the keypress; this only draws the screen.
  */
 void display_show_splash(const char *host, uint16_t port) {
-    static const char word[] = "KILLZONE";
+    static const char title[] = "KILLZONE";
     static char line_buf[41];
     /* Full display-line width (+NUL). "Server: <host>:<port>" can reach
      * 31+ chars for the default host, so a 30-byte buffer truncated the
@@ -177,7 +177,7 @@ void display_show_splash(const char *host, uint16_t port) {
     for (row = 0; row < 5; row++) {
         x = 0;
         for (letter_idx = 0; letter_idx < word_len; letter_idx++) {
-            glyph_row = splash_glyph_row(word[letter_idx], row);
+            glyph_row = splash_glyph_row(title[letter_idx], row);
             for (glyph_col = 0; glyph_col < 5; glyph_col++) {
                 line_buf[x] = glyph_row[glyph_col];
                 x++;
@@ -373,7 +373,7 @@ void display_render_game(const player_state_t *local, const player_state_t *othe
     static uint8_t last_player_y = 255;
     static uint8_t last_other_positions[MAX_OTHER_PLAYERS * 2];  /* x,y pairs */
     static uint8_t last_other_count = 255;
-    static int world_rendered = 0; /* Moved declaration to top */
+    static int world_rendered = 0;
     static int positions_initialized = 0;
     uint8_t y, i;
     uint8_t x;

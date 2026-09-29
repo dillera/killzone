@@ -4,6 +4,6 @@
 #include <cmoc.h>
 #include <coco.h>
 
-#define snprintf(buf, n, fmt, ...) sprintf((buf), (fmt), __VA_ARGS__)
+int snprintf(char *buf, size_t n, const char *fmt, ...);
 
 #endif /* SNPRINTF_H */
